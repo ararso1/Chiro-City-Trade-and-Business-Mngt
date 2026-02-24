@@ -1,0 +1,49 @@
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { TradersService } from './traders.service';
+import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
+
+@ApiTags('traders')
+@ApiBearerAuth()
+@Controller('traders')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+export class TradersController {
+  constructor(private traders: TradersService) {}
+
+  @Post()
+  @RequirePermissions('traders.create', '*')
+  create(@Body() dto: CreateTraderDto) {
+    return this.traders.create(dto);
+  }
+
+  @Get()
+  @RequirePermissions('traders.read', '*')
+  findAll(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    return this.traders.findAll({
+      search,
+      status,
+      skip: skip ? parseInt(skip, 10) : undefined,
+      take: take ? parseInt(take, 10) : undefined,
+    });
+  }
+
+  @Get(':id')
+  @RequirePermissions('traders.read', '*')
+  findOne(@Param('id') id: string) {
+    return this.traders.findOne(id);
+  }
+
+  @Put(':id')
+  @RequirePermissions('traders.update', '*')
+  update(@Param('id') id: string, @Body() dto: UpdateTraderDto) {
+    return this.traders.update(id, dto);
+  }
+}

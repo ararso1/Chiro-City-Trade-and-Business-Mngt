@@ -1,0 +1,106 @@
+import { LicensesService } from './licenses.service';
+import { CreateLicenseDto, UpdateLicenseDto } from './dto/license.dto';
+export declare class LicensesController {
+    private licenses;
+    constructor(licenses: LicensesService);
+    create(dto: CreateLicenseDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        businessId: string;
+        licenseType: string;
+        licenseNumber: string;
+        issuedAt: Date;
+        expiresAt: Date;
+        issuedBy: string | null;
+        renewalReminderSent: boolean;
+    }>;
+    findAll(businessId?: string, status?: string, skip?: string, take?: string): Promise<{
+        items: ({
+            business: {
+                id: string;
+                name: string;
+                trader: {
+                    fullName: string;
+                };
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            businessId: string;
+            licenseType: string;
+            licenseNumber: string;
+            issuedAt: Date;
+            expiresAt: Date;
+            issuedBy: string | null;
+            renewalReminderSent: boolean;
+        })[];
+        total: number;
+    }>;
+    findOne(id: string): Promise<({
+        business: {
+            trader: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                email: string;
+                phone: string;
+                userId: string | null;
+                fullName: string;
+                idType: string | null;
+                idNumber: string | null;
+                address: string | null;
+                woreda: string | null;
+                kebele: string | null;
+                photoUrl: string | null;
+                status: string;
+                mesobRef: string | null;
+            };
+        } & {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            email: string | null;
+            phone: string | null;
+            address: string;
+            woreda: string | null;
+            kebele: string | null;
+            status: string;
+            mesobRef: string | null;
+            traderId: string;
+            tradeName: string | null;
+            category: string;
+            subCategory: string | null;
+            tin: string | null;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        businessId: string;
+        licenseType: string;
+        licenseNumber: string;
+        issuedAt: Date;
+        expiresAt: Date;
+        issuedBy: string | null;
+        renewalReminderSent: boolean;
+    }) | null>;
+    update(id: string, dto: UpdateLicenseDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        businessId: string;
+        licenseType: string;
+        licenseNumber: string;
+        issuedAt: Date;
+        expiresAt: Date;
+        issuedBy: string | null;
+        renewalReminderSent: boolean;
+    }>;
+}
