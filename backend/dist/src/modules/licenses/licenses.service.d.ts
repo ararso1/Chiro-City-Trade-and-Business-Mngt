@@ -8,44 +8,76 @@ export declare class LicensesService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        traderId: string;
+        licenseNo: string;
         businessId: string;
-        licenseType: string;
-        licenseNumber: string;
-        issuedAt: Date;
-        expiresAt: Date;
-        issuedBy: string | null;
+        licenseType: string | null;
+        issueDate: Date | null;
+        expiryDate: Date | null;
+        qrCode: string | null;
+        issuedById: string | null;
         renewalReminderSent: boolean;
     }>;
     findAll(params?: {
         businessId?: string;
+        traderId?: string;
         status?: string;
         skip?: number;
         take?: number;
     }): Promise<{
         items: ({
+            trader: {
+                id: string;
+                email: string;
+                fullName: string;
+            };
             business: {
                 id: string;
                 name: string;
-                trader: {
-                    fullName: string;
-                };
             };
+            issuedBy: {
+                id: string;
+                name: string;
+                email: string;
+            } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
             status: string;
+            traderId: string;
+            licenseNo: string;
             businessId: string;
-            licenseType: string;
-            licenseNumber: string;
-            issuedAt: Date;
-            expiresAt: Date;
-            issuedBy: string | null;
+            licenseType: string | null;
+            issueDate: Date | null;
+            expiryDate: Date | null;
+            qrCode: string | null;
+            issuedById: string | null;
             renewalReminderSent: boolean;
         })[];
         total: number;
     }>;
     findOne(id: string): Promise<({
+        trader: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            email: string;
+            phone: string;
+            userId: string | null;
+            fullName: string;
+            gender: string | null;
+            dob: Date | null;
+            nationalId: string | null;
+            address: string | null;
+            woreda: string | null;
+            kebele: string | null;
+            photoUrl: string | null;
+            status: string;
+            createdById: string | null;
+            approvedById: string | null;
+            mesobRef: string | null;
+        };
         business: {
             trader: {
                 id: string;
@@ -55,13 +87,16 @@ export declare class LicensesService {
                 phone: string;
                 userId: string | null;
                 fullName: string;
-                idType: string | null;
-                idNumber: string | null;
+                gender: string | null;
+                dob: Date | null;
+                nationalId: string | null;
                 address: string | null;
                 woreda: string | null;
                 kebele: string | null;
                 photoUrl: string | null;
                 status: string;
+                createdById: string | null;
+                approvedById: string | null;
                 mesobRef: string | null;
             };
         } & {
@@ -71,41 +106,55 @@ export declare class LicensesService {
             updatedAt: Date;
             email: string | null;
             phone: string | null;
-            address: string;
+            type: string | null;
+            address: string | null;
             woreda: string | null;
             kebele: string | null;
             status: string;
             mesobRef: string | null;
+            startDate: Date | null;
             traderId: string;
-            tradeName: string | null;
             category: string;
+            shopNo: string | null;
+            tradeName: string | null;
             subCategory: string | null;
             tin: string | null;
         };
+        issuedBy: {
+            id: string;
+            name: string;
+            email: string;
+        } | null;
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        traderId: string;
+        licenseNo: string;
         businessId: string;
-        licenseType: string;
-        licenseNumber: string;
-        issuedAt: Date;
-        expiresAt: Date;
-        issuedBy: string | null;
+        licenseType: string | null;
+        issueDate: Date | null;
+        expiryDate: Date | null;
+        qrCode: string | null;
+        issuedById: string | null;
         renewalReminderSent: boolean;
     }) | null>;
-    update(id: string, dto: UpdateLicenseDto): Promise<{
+    update(id: string, dto: UpdateLicenseDto & {
+        issuedById?: string;
+    }): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        traderId: string;
+        licenseNo: string;
         businessId: string;
-        licenseType: string;
-        licenseNumber: string;
-        issuedAt: Date;
-        expiresAt: Date;
-        issuedBy: string | null;
+        licenseType: string | null;
+        issueDate: Date | null;
+        expiryDate: Date | null;
+        qrCode: string | null;
+        issuedById: string | null;
         renewalReminderSent: boolean;
     }>;
 }

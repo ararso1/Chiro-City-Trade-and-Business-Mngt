@@ -20,6 +20,7 @@ const license_dto_1 = require("./dto/license.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const permissions_guard_1 = require("../auth/permissions.guard");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
+const current_user_decorator_1 = require("../auth/current-user.decorator");
 let LicensesController = class LicensesController {
     constructor(licenses) {
         this.licenses = licenses;
@@ -27,9 +28,10 @@ let LicensesController = class LicensesController {
     create(dto) {
         return this.licenses.create(dto);
     }
-    findAll(businessId, status, skip, take) {
+    findAll(businessId, traderId, status, skip, take) {
         return this.licenses.findAll({
             businessId,
+            traderId,
             status,
             skip: skip ? parseInt(skip, 10) : undefined,
             take: take ? parseInt(take, 10) : undefined,
@@ -38,8 +40,12 @@ let LicensesController = class LicensesController {
     findOne(id) {
         return this.licenses.findOne(id);
     }
-    update(id, dto) {
-        return this.licenses.update(id, dto);
+    update(id, dto, userId) {
+        const payload = { ...dto };
+        if (dto.status === 'issued' && !dto.issuedById && userId) {
+            payload.issuedById = userId;
+        }
+        return this.licenses.update(id, payload);
     }
 };
 exports.LicensesController = LicensesController;
@@ -55,11 +61,12 @@ __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('licenses.read', '*'),
     __param(0, (0, common_1.Query)('businessId')),
-    __param(1, (0, common_1.Query)('status')),
-    __param(2, (0, common_1.Query)('skip')),
-    __param(3, (0, common_1.Query)('take')),
+    __param(1, (0, common_1.Query)('traderId')),
+    __param(2, (0, common_1.Query)('status')),
+    __param(3, (0, common_1.Query)('skip')),
+    __param(4, (0, common_1.Query)('take')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], LicensesController.prototype, "findAll", null);
 __decorate([
@@ -75,8 +82,9 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('licenses.update', '*'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, license_dto_1.UpdateLicenseDto]),
+    __metadata("design:paramtypes", [String, license_dto_1.UpdateLicenseDto, String]),
     __metadata("design:returntype", void 0)
 ], LicensesController.prototype, "update", null);
 exports.LicensesController = LicensesController = __decorate([

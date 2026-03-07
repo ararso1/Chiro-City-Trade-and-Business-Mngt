@@ -14,17 +14,17 @@ export declare class NotificationsService {
         metadata?: object;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        amount: Decimal | null;
-        type: string;
-        title: string;
         userId: string | null;
         traderId: string | null;
+        type: string;
+        title: string;
         body: string | null;
+        amount: Decimal | null;
         channel: string;
         sentAt: Date | null;
         readAt: Date | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
     }>;
     findAll(params?: {
         userId?: string;
@@ -36,32 +36,47 @@ export declare class NotificationsService {
     }): Promise<{
         items: {
             id: string;
-            createdAt: Date;
-            amount: Decimal | null;
-            type: string;
-            title: string;
             userId: string | null;
             traderId: string | null;
+            type: string;
+            title: string;
             body: string | null;
+            amount: Decimal | null;
             channel: string;
             sentAt: Date | null;
             readAt: Date | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            createdAt: Date;
         }[];
         total: number;
     }>;
     markRead(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        amount: Decimal | null;
-        type: string;
-        title: string;
         userId: string | null;
         traderId: string | null;
+        type: string;
+        title: string;
         body: string | null;
+        amount: Decimal | null;
         channel: string;
         sentAt: Date | null;
         readAt: Date | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
+    }>;
+    bulkCreateForTraders(data: {
+        type: string;
+        title: string;
+        body?: string;
+        channels: {
+            sms?: boolean;
+            email?: boolean;
+            inApp?: boolean;
+        };
+        expiryDate?: string;
+        amount?: number;
+    }): Promise<{
+        created: number;
+        tradersCount: number;
     }>;
 }

@@ -8,6 +8,7 @@ import Layout from "./components/layout/Layout";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import TradersPage from "./pages/TradersPage";
+import TraderDetailPage from "./pages/TraderDetailPage";
 import BusinessesPage from "./pages/BusinessesPage";
 import LicensesPage from "./pages/LicensesPage";
 import FinancePage from "./pages/FinancePage";
@@ -119,6 +120,7 @@ function AppRoutes() {
         data-path="src/App.tsx"
       >
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="traders/:id" element={<TraderDetailPage />} />
         <Route path="traders" element={<TradersPage />} />
         <Route path="businesses" element={<BusinessesPage />} />
         <Route path="licenses" element={<LicensesPage />} />

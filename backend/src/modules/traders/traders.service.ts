@@ -10,8 +10,11 @@ export class TradersService {
     private fiscalYear: FiscalYearService,
   ) {}
 
-  async create(dto: CreateTraderDto) {
-    return this.prisma.trader.create({ data: dto as any });
+  async create(dto: CreateTraderDto, createdById?: string) {
+    const data: any = { ...dto };
+    if (dto.dob) data.dob = new Date(dto.dob);
+    if (createdById) data.createdById = createdById;
+    return this.prisma.trader.create({ data });
   }
 
   async findAll(params?: { search?: string; status?: string; skip?: number; take?: number }) {
@@ -43,10 +46,13 @@ export class TradersService {
     return this.prisma.trader.findUnique({
       where: { id },
       include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        approvedBy: { select: { id: true, name: true, email: true } },
         businesses: {
           include: {
             licenses: true,
-            _count: { select: { inspections: true, payments: true } },
+            inspections: { include: { inspector: { select: { name: true } }, violations: true } },
+            payments: { include: { taxType: true } },
           },
         },
         documents: true,
@@ -55,6 +61,8 @@ export class TradersService {
   }
 
   async update(id: string, dto: UpdateTraderDto) {
-    return this.prisma.trader.update({ where: { id }, data: dto as any });
+    const data: any = { ...dto };
+    if (dto.dob !== undefined) data.dob = dto.dob ? new Date(dto.dob) : null;
+    return this.prisma.trader.update({ where: { id }, data });
   }
 }

@@ -74,7 +74,7 @@ export const api = {
     update: (id: string, body: object) => request<any>('/businesses/' + id, { method: 'PUT', body: JSON.stringify(body) }),
   },
   licenses: {
-    list: (params?: { businessId?: string; status?: string; skip?: number; take?: number }) =>
+    list: (params?: { businessId?: string; traderId?: string; status?: string; skip?: number; take?: number }) =>
       request<{ items: any[]; total: number }>('/licenses', { params: params as Record<string, string> }),
     get: (id: string) => request<any>('/licenses/' + id),
     create: (body: object) => request<any>('/licenses', { method: 'POST', body: JSON.stringify(body) }),
@@ -115,6 +115,18 @@ export const api = {
     list: (params?: { type?: string; read?: string; skip?: number; take?: number }) =>
       request<{ items: any[]; total: number }>('/notifications', { params: params as Record<string, string> }),
     markRead: (id: string) => request<any>('/notifications/' + id + '/read', { method: 'PUT' }),
+    bulkSend: (body: {
+      type: string;
+      title: string;
+      body?: string;
+      channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+      expiryDate?: string;
+      amount?: number;
+    }) =>
+      request<{ created: number; tradersCount: number }>('/notifications/bulk', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
   users: {
     list: () => request<any[]>('/users'),

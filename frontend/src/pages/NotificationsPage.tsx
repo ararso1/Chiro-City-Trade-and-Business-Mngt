@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -27,78 +27,74 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { useNotifications } from "@/store";
 import {
   Bell,
   BellOff,
-  Plus,
   Mail,
   Smartphone,
   Slack,
   Info,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
   Settings,
   Send,
   Filter,
+  Loader2,
+  Receipt,
+  FileCheck,
+  Calendar,
+  Megaphone,
 } from "lucide-react";
 import { format } from "date-fns";
-type NotificationType = "info" | "success" | "warning" | "error";
+import { api } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  isRead: boolean;
-  createdAt: Date;
-}
+export type AnnouncementType =
+  | "tax_reminder"
+  | "license_expiry"
+  | "meeting"
+  | "announcement";
+
+const ANNOUNCEMENT_TYPES: { value: AnnouncementType; label: string }[] = [
+  { value: "tax_reminder", label: "Tax Reminder (Annual)" },
+  { value: "license_expiry", label: "License Expiry" },
+  { value: "meeting", label: "Random Meeting" },
+  { value: "announcement", label: "Announcement" },
+];
 
 export default function NotificationsPage() {
-  // Local notification list state
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-
-  // Filter state
-  const [filter, setFilter] = useState<
-    "all" | "unread" | "read" | NotificationType
-  >("all");
-
-  // Dialog states
+  const [items, setItems] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [filter, setFilter] = useState<string>("__all__");
+  const [readFilter, setReadFilter] = useState<string>("__all__");
   const [sendDialog, setSendDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
 
-  // Notification form state
-  const [notificationForm, setNotificationForm] = useState({
+  const [form, setForm] = useState({
+    type: "announcement" as AnnouncementType,
     title: "",
     message: "",
-    type: "info" as NotificationType,
-    recipients: "all",
-    channels: {
-      inApp: true,
-      email: false,
-      push: false,
-    },
+    expiryDate: "",
+    channels: { inApp: true, email: false, sms: false },
   });
 
-  // Notification settings state
   const [notificationSettings, setNotificationSettings] = useState({
     email: {
       enabled: true,
       frequency: "immediate",
       types: {
-        leaveRequests: true,
-        timesheetReminders: true,
-        systemUpdates: false,
+        taxReminders: true,
+        licenseExpiry: true,
+        meetings: true,
         announcements: true,
       },
     },
-    push: {
-      enabled: true,
+    sms: {
+      enabled: false,
       types: {
-        leaveRequests: true,
-        timesheetReminders: false,
-        systemUpdates: false,
+        taxReminders: true,
+        licenseExpiry: true,
+        meetings: false,
         announcements: false,
       },
     },
@@ -106,173 +102,158 @@ export default function NotificationsPage() {
       enabled: false,
       webhook: "",
       types: {
-        leaveRequests: false,
-        timesheetReminders: false,
-        systemUpdates: false,
+        taxReminders: false,
+        licenseExpiry: false,
+        meetings: false,
         announcements: false,
       },
     },
   });
 
-  // Add notification helper
-  const addNotification = (
-    notif: Omit<Notification, "id" | "isRead" | "createdAt">
-  ) => {
-    setNotifications((prev) => [
-      ...prev,
-      {
-        ...notif,
-        id: Date.now().toString(),
-        isRead: false,
-        createdAt: new Date(),
-      },
-    ]);
+  const loadInbox = async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = { take: "50" };
+      if (readFilter === "read") params.read = "true";
+      else if (readFilter === "unread") params.read = "false";
+      if (filter !== "__all__") params.type = filter;
+      const res = await api.notifications.list(params);
+      setItems(res.items);
+      setTotal(res.total);
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Mark as read
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+  useEffect(() => {
+    loadInbox();
+  }, [filter, readFilter]);
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await api.notifications.markRead(id);
+      setItems((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, readAt: new Date() } : n))
+      );
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    }
   };
 
-  // Mark all read
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  const handleSendBulk = async () => {
+    if (!form.title.trim()) {
+      toast({ title: "Enter a title", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const body: Parameters<typeof api.notifications.bulkSend>[0] = {
+        type: form.type,
+        title: form.title.trim(),
+        body: form.message.trim() || undefined,
+        channels: {
+          inApp: form.channels.inApp,
+          email: form.channels.email,
+          sms: form.channels.sms,
+        },
+      };
+      if (form.type === "license_expiry" && form.expiryDate) {
+        body.expiryDate = form.expiryDate;
+      }
+      const res = await api.notifications.bulkSend(body);
+      toast({
+        title: "Sent",
+        description: `Notification sent to ${res.tradersCount} traders (${res.created} delivery entries). In-app${form.channels.email ? " + email" : ""}${form.channels.sms ? " + SMS" : ""}.`,
+      });
+      setSendDialog(false);
+      setForm({
+        type: "announcement",
+        title: "",
+        message: "",
+        expiryDate: "",
+        channels: { inApp: true, email: false, sms: false },
+      });
+      loadInbox();
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
-  // Clear all notifications
-  const clearNotifications = () => {
-    setNotifications([]);
-  };
-
-  // Filtered notifications list
-  const filteredNotifications = notifications.filter((notification) => {
-    if (filter === "unread") return !notification.isRead;
-    if (filter === "read") return notification.isRead;
-    if (filter !== "all" && filter !== notification.type) return false;
-    return true;
-  });
-
-  // Unread count
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-  // Stats for display
+  const unreadCount = items.filter((n) => !n.readAt).length;
   const stats = {
-    total: notifications.length,
+    total,
     unread: unreadCount,
-    today: notifications.filter(
+    today: items.filter(
       (n) =>
-        format(n.createdAt, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
+        format(new Date(n.createdAt), "yyyy-MM-dd") ===
+        format(new Date(), "yyyy-MM-dd")
     ).length,
-    thisWeek: notifications.filter((n) => {
+    thisWeek: items.filter((n) => {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
-      return n.createdAt >= weekAgo;
+      return new Date(n.createdAt) >= weekAgo;
     }).length,
   };
 
-  // Icons for notification types
-  const getNotificationIcon = (type: NotificationType) => {
+  const getTypeIcon = (type: string) => {
     switch (type) {
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "error":
-        return <XCircle className="h-4 w-4 text-red-500" />;
+      case "tax_reminder":
+        return <Receipt className="h-4 w-4 text-amber-500" />;
+      case "license_expiry":
+        return <FileCheck className="h-4 w-4 text-orange-500" />;
+      case "meeting":
+        return <Calendar className="h-4 w-4 text-blue-500" />;
+      case "announcement":
+        return <Megaphone className="h-4 w-4 text-violet-500" />;
       default:
-        return <Info className="h-4 w-4 text-blue-500" />;
+        return <Info className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
-  const getNotificationColor = (type: NotificationType) => {
+  const getTypeLabel = (type: string) =>
+    ANNOUNCEMENT_TYPES.find((t) => t.value === type)?.label ?? type;
+
+  const getTypeBorder = (type: string) => {
     switch (type) {
-      case "success":
-        return "border-l-green-500";
-      case "warning":
-        return "border-l-yellow-500";
-      case "error":
-        return "border-l-red-500";
-      default:
+      case "tax_reminder":
+        return "border-l-amber-500";
+      case "license_expiry":
+        return "border-l-orange-500";
+      case "meeting":
         return "border-l-blue-500";
+      case "announcement":
+        return "border-l-violet-500";
+      default:
+        return "border-l-gray-400";
     }
-  };
-
-  // Handle sending notification
-  const handleSendNotification = () => {
-    if (!notificationForm.title || !notificationForm.message) {
-      addNotification({
-        title: "Missing Information",
-        message: "Please provide title and message",
-        type: "error",
-      });
-      return;
-    }
-
-    addNotification({
-      title: notificationForm.title,
-      message: notificationForm.message,
-      type: notificationForm.type,
-    });
-
-    // Simulate sending via other channels
-    if (notificationForm.channels.email) {
-      console.log("Sending email notification...");
-    }
-    if (notificationForm.channels.push) {
-      console.log("Sending push notification...");
-    }
-
-    addNotification({
-      title: "Notification Sent",
-      message: `Notification sent to ${notificationForm.recipients} recipients`,
-      type: "success",
-    });
-
-    setSendDialog(false);
-    setNotificationForm({
-      title: "",
-      message: "",
-      type: "info",
-      recipients: "all",
-      channels: {
-        inApp: true,
-        email: false,
-        push: false,
-      },
-    });
-  };
-
-  const handleMarkAllAsRead = () => {
-    markAllAsRead();
-    addNotification({
-      title: "All Marked as Read",
-      message: "All notifications have been marked as read",
-      type: "success",
-    });
-  };
-
-  const handleClearAll = () => {
-    clearNotifications();
-    addNotification({
-      title: "Notifications Cleared",
-      message: "All notifications have been cleared",
-      type: "success",
-    });
-  };
-
-  const handleMarkAsRead = (id: string) => {
-    markAsRead(id);
   };
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Notifications &amp; Announcements
+          </h1>
           <p className="text-muted-foreground">
-            Manage and configure your notification preferences
+            Send bulk SMS and email to all traders (tax reminders, license
+            expiry, meetings, announcements)
           </p>
         </div>
         <div className="flex gap-2">
@@ -288,14 +269,13 @@ export default function NotificationsPage() {
             <DialogTrigger asChild>
               <Button>
                 <Send className="mr-2 h-4 w-4" />
-                Send Notification
+                Send to all traders
               </Button>
             </DialogTrigger>
           </Dialog>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -341,212 +321,181 @@ export default function NotificationsPage() {
         </Card>
       </div>
 
-      {/* Notification List */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle>Notification Inbox</CardTitle>
               <CardDescription>
-                Your recent notifications and alerts
+                Notifications for the current user
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Select
                 value={filter}
-                // onValueChange={setFilter}
+                onValueChange={setFilter}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-44">
                   <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue />
+                  <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
-                  <SelectItem value="info">Info</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
+                  <SelectItem value="__all__">All types</SelectItem>
+                  {ANNOUNCEMENT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {unreadCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkAllAsRead}
-                >
-                  Mark All Read
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleClearAll}>
-                Clear All
-              </Button>
+              <Select
+                value={readFilter}
+                onValueChange={setReadFilter}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Read" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All</SelectItem>
+                  <SelectItem value="unread">Unread</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {filteredNotifications.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <BellOff className="h-12 w-12 mx-auto mb-4" />
-                <p>No notifications found</p>
-              </div>
-            ) : (
-              filteredNotifications.map((notification) => (
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BellOff className="h-12 w-12 mx-auto mb-4" />
+              <p>No notifications found</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {items.map((n) => (
                 <div
-                  key={notification.id}
-                  className={`border-l-4 bg-card rounded-lg p-4 transition-all hover:shadow-sm cursor-pointer ${getNotificationColor(
-                    notification.type
-                  )} ${
-                    !notification.isRead ? "bg-blue-50 dark:bg-blue-950/10" : ""
+                  key={n.id}
+                  className={`border-l-4 rounded-lg p-4 transition-all hover:shadow-sm cursor-pointer ${getTypeBorder(n.type)} ${
+                    !n.readAt ? "bg-blue-50 dark:bg-blue-950/10" : "bg-card"
                   }`}
-                  onClick={() =>
-                    !notification.isRead && handleMarkAsRead(notification.id)
-                  }
+                  onClick={() => !n.readAt && handleMarkAsRead(n.id)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      {getNotificationIcon(notification.type)}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{notification.title}</h4>
-                          {!notification.isRead && (
-                            <Badge variant="secondary" className="text-xs">
-                              New
-                            </Badge>
-                          )}
-                        </div>
+                  <div className="flex items-start gap-3">
+                    {getTypeIcon(n.type)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="font-medium">{n.title}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {getTypeLabel(n.type)}
+                        </Badge>
+                        {!n.readAt && (
+                          <Badge variant="secondary" className="text-xs">
+                            New
+                          </Badge>
+                        )}
+                      </div>
+                      {n.body && (
                         <p className="text-sm text-muted-foreground mb-2">
-                          {notification.message}
+                          {n.body}
                         </p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>
-                            {format(
-                              notification.createdAt,
-                              "MMM dd, yyyy HH:mm"
-                            )}
-                          </span>
-                          {/* {notification.actionUrl && (
-                            <span className="text-blue-600 hover:underline">
-                              View Details →
-                            </span>
-                          )} */}
-                        </div>
+                      )}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>
+                          {format(
+                            new Date(n.createdAt),
+                            "MMM dd, yyyy HH:mm"
+                          )}
+                        </span>
+                        {n.channel && (
+                          <span className="capitalize">{n.channel}</span>
+                        )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      // onClick={(e) => {
-                      //   e.stopPropagation();
-                      //   removeNotification(notification.id);
-                      // }}
-                    >
-                      ×
-                    </Button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Send Notification Dialog */}
+      {/* Send to all traders dialog */}
       <Dialog open={sendDialog} onOpenChange={setSendDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Send Notification</DialogTitle>
+            <DialogTitle>Send to all traders</DialogTitle>
             <DialogDescription>
-              Send a notification to users via multiple channels
+              Bulk SMS and email: annual tax payment, license expiry, random
+              meetings, or general announcements
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={notificationForm.title}
-                onChange={(e) =>
-                  setNotificationForm((prev) => ({
-                    ...prev,
-                    title: e.target.value,
-                  }))
+              <Label>Type</Label>
+              <Select
+                value={form.type}
+                onValueChange={(v) =>
+                  setForm((prev) => ({ ...prev, type: v as AnnouncementType }))
                 }
-                placeholder="Notification title"
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANNOUNCEMENT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {form.type === "license_expiry" && (
+              <div>
+                <Label>Expiry date</Label>
+                <Input
+                  type="date"
+                  value={form.expiryDate}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, expiryDate: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+            <div>
+              <Label>Title *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="e.g. Annual tax payment reminder"
               />
             </div>
             <div>
-              <Label htmlFor="message">Message</Label>
+              <Label>Message</Label>
               <Textarea
-                id="message"
-                value={notificationForm.message}
+                value={form.message}
                 onChange={(e) =>
-                  setNotificationForm((prev) => ({
-                    ...prev,
-                    message: e.target.value,
-                  }))
+                  setForm((prev) => ({ ...prev, message: e.target.value }))
                 }
-                placeholder="Notification message"
+                placeholder="Body of the notification"
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="type">Type</Label>
-                <Select
-                  value={notificationForm.type}
-                  // onValueChange={(value) =>
-                  //   setNotificationForm((prev) => ({ ...prev, type: value }))
-                  // }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="info">Info</SelectItem>
-                    <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="warning">Warning</SelectItem>
-                    <SelectItem value="error">Error</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="recipients">Recipients</Label>
-                <Select
-                  value={notificationForm.recipients}
-                  onValueChange={(value) =>
-                    setNotificationForm((prev) => ({
-                      ...prev,
-                      recipients: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="managers">Managers Only</SelectItem>
-                    <SelectItem value="hr">HR Team</SelectItem>
-                    <SelectItem value="department">Department</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             <div>
-              <Label>Delivery Channels</Label>
+              <Label>Channels (bulk SMS &amp; email to all traders)</Label>
               <div className="space-y-3 mt-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4" />
-                    <span className="text-sm">In-App Notification</span>
-                  </div>
+                  <span className="text-sm">In-app notification</span>
                   <Switch
-                    checked={notificationForm.channels.inApp}
+                    checked={form.channels.inApp}
                     onCheckedChange={(checked) =>
-                      setNotificationForm((prev) => ({
+                      setForm((prev) => ({
                         ...prev,
                         channels: { ...prev.channels, inApp: checked },
                       }))
@@ -559,9 +508,9 @@ export default function NotificationsPage() {
                     <span className="text-sm">Email</span>
                   </div>
                   <Switch
-                    checked={notificationForm.channels.email}
+                    checked={form.channels.email}
                     onCheckedChange={(checked) =>
-                      setNotificationForm((prev) => ({
+                      setForm((prev) => ({
                         ...prev,
                         channels: { ...prev.channels, email: checked },
                       }))
@@ -571,27 +520,34 @@ export default function NotificationsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Smartphone className="h-4 w-4" />
-                    <span className="text-sm">Push Notification</span>
+                    <span className="text-sm">SMS</span>
                   </div>
                   <Switch
-                    checked={notificationForm.channels.push}
+                    checked={form.channels.sms}
                     onCheckedChange={(checked) =>
-                      setNotificationForm((prev) => ({
+                      setForm((prev) => ({
                         ...prev,
-                        channels: { ...prev.channels, push: checked },
+                        channels: { ...prev.channels, sms: checked },
                       }))
                     }
                   />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setSendDialog(false)}>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setSendDialog(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleSendNotification}>
-                <Send className="mr-2 h-4 w-4" />
-                Send Notification
+              <Button onClick={handleSendBulk} disabled={sending}>
+                {sending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Send to all traders
               </Button>
             </div>
           </div>
@@ -602,18 +558,18 @@ export default function NotificationsPage() {
       <Dialog open={settingsDialog} onOpenChange={setSettingsDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Notification Settings</DialogTitle>
+            <DialogTitle>Notification settings</DialogTitle>
             <DialogDescription>
-              Configure your notification preferences and delivery methods
+              Preferences for tax reminders, license expiry, meetings, and
+              announcements
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
-            {/* Email Settings */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
-                  <h3 className="font-medium">Email Notifications</h3>
+                  <h3 className="font-medium">Email</h3>
                 </div>
                 <Switch
                   checked={notificationSettings.email.enabled}
@@ -626,84 +582,78 @@ export default function NotificationsPage() {
                 />
               </div>
               {notificationSettings.email.enabled && (
-                <div className="space-y-3 pl-7">
-                  <div>
-                    <Label>Frequency</Label>
-                    <Select
-                      value={notificationSettings.email.frequency}
-                      onValueChange={(value) =>
-                        setNotificationSettings((prev) => ({
-                          ...prev,
-                          email: { ...prev.email, frequency: value },
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="immediate">Immediate</SelectItem>
-                        <SelectItem value="daily">Daily Digest</SelectItem>
-                        <SelectItem value="weekly">Weekly Digest</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Notification Types</Label>
-                    <div className="space-y-2 mt-2">
-                      {Object.entries(notificationSettings.email.types).map(
-                        ([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between"
-                          >
-                            <span className="text-sm capitalize">
-                              {key.replace(/([A-Z])/g, " $1")}
-                            </span>
-                            <Switch
-                              checked={value}
-                              onCheckedChange={(checked) =>
-                                setNotificationSettings((prev) => ({
-                                  ...prev,
-                                  email: {
-                                    ...prev.email,
-                                    types: {
-                                      ...prev.email.types,
-                                      [key]: checked,
-                                    },
+                <div className="space-y-2 pl-7">
+                  <Label>Frequency</Label>
+                  <Select
+                    value={notificationSettings.email.frequency}
+                    onValueChange={(value) =>
+                      setNotificationSettings((prev) => ({
+                        ...prev,
+                        email: { ...prev.email, frequency: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="immediate">Immediate</SelectItem>
+                      <SelectItem value="daily">Daily digest</SelectItem>
+                      <SelectItem value="weekly">Weekly digest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Label className="pt-2 block">Types</Label>
+                  <div className="space-y-2">
+                    {Object.entries(notificationSettings.email.types).map(
+                      ([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-sm capitalize">
+                            {key.replace(/([A-Z])/g, " $1")}
+                          </span>
+                          <Switch
+                            checked={value}
+                            onCheckedChange={(checked) =>
+                              setNotificationSettings((prev) => ({
+                                ...prev,
+                                email: {
+                                  ...prev.email,
+                                  types: {
+                                    ...prev.email.types,
+                                    [key]: checked,
                                   },
-                                }))
-                              }
-                            />
-                          </div>
-                        )
-                      )}
-                    </div>
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Push Notifications */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Smartphone className="h-5 w-5" />
-                  <h3 className="font-medium">Push Notifications</h3>
+                  <h3 className="font-medium">SMS</h3>
                 </div>
                 <Switch
-                  checked={notificationSettings.push.enabled}
+                  checked={notificationSettings.sms.enabled}
                   onCheckedChange={(checked) =>
                     setNotificationSettings((prev) => ({
                       ...prev,
-                      push: { ...prev.push, enabled: checked },
+                      sms: { ...prev.sms, enabled: checked },
                     }))
                   }
                 />
               </div>
-              {notificationSettings.push.enabled && (
+              {notificationSettings.sms.enabled && (
                 <div className="space-y-2 pl-7">
-                  {Object.entries(notificationSettings.push.types).map(
+                  {Object.entries(notificationSettings.sms.types).map(
                     ([key, value]) => (
                       <div
                         key={key}
@@ -717,9 +667,9 @@ export default function NotificationsPage() {
                           onCheckedChange={(checked) =>
                             setNotificationSettings((prev) => ({
                               ...prev,
-                              push: {
-                                ...prev.push,
-                                types: { ...prev.push.types, [key]: checked },
+                              sms: {
+                                ...prev.sms,
+                                types: { ...prev.sms.types, [key]: checked },
                               },
                             }))
                           }
@@ -730,13 +680,11 @@ export default function NotificationsPage() {
                 </div>
               )}
             </div>
-
-            {/* Slack Integration */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Slack className="h-5 w-5" />
-                  <h3 className="font-medium">Slack Integration</h3>
+                  <h3 className="font-medium">Slack</h3>
                 </div>
                 <Switch
                   checked={notificationSettings.slack.enabled}
@@ -757,48 +705,18 @@ export default function NotificationsPage() {
                       onChange={(e) =>
                         setNotificationSettings((prev) => ({
                           ...prev,
-                          slack: { ...prev.slack, webhook: e.target.value },
+                          slack: {
+                            ...prev.slack,
+                            webhook: e.target.value,
+                          },
                         }))
                       }
                       placeholder="https://hooks.slack.com/services/..."
                     />
                   </div>
-                  <div>
-                    <Label>Notification Types</Label>
-                    <div className="space-y-2 mt-2">
-                      {Object.entries(notificationSettings.slack.types).map(
-                        ([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between"
-                          >
-                            <span className="text-sm capitalize">
-                              {key.replace(/([A-Z])/g, " $1")}
-                            </span>
-                            <Switch
-                              checked={value}
-                              onCheckedChange={(checked) =>
-                                setNotificationSettings((prev) => ({
-                                  ...prev,
-                                  slack: {
-                                    ...prev.slack,
-                                    types: {
-                                      ...prev.slack.types,
-                                      [key]: checked,
-                                    },
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
-
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -808,15 +726,15 @@ export default function NotificationsPage() {
               </Button>
               <Button
                 onClick={() => {
-                  addNotification({
-                    title: "Settings Saved",
-                    message: "Your notification preferences have been updated",
-                    type: "success",
+                  toast({
+                    title: "Settings saved",
+                    description:
+                      "Notification preferences updated",
                   });
                   setSettingsDialog(false);
                 }}
               >
-                Save Settings
+                Save
               </Button>
             </div>
           </div>

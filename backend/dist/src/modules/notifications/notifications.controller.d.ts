@@ -5,33 +5,33 @@ export declare class NotificationsController {
     findAll(traderId?: string, type?: string, read?: string, skip?: string, take?: string, userId?: string): Promise<{
         items: {
             id: string;
-            createdAt: Date;
-            amount: import("@prisma/client/runtime/library").Decimal | null;
-            type: string;
-            title: string;
             userId: string | null;
             traderId: string | null;
+            type: string;
+            title: string;
             body: string | null;
+            amount: import("@prisma/client/runtime/library").Decimal | null;
             channel: string;
             sentAt: Date | null;
             readAt: Date | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            createdAt: Date;
         }[];
         total: number;
     }>;
     markRead(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        amount: import("@prisma/client/runtime/library").Decimal | null;
-        type: string;
-        title: string;
         userId: string | null;
         traderId: string | null;
+        type: string;
+        title: string;
         body: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal | null;
         channel: string;
         sentAt: Date | null;
         readAt: Date | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
     }>;
     create(body: {
         userId?: string;
@@ -44,16 +44,31 @@ export declare class NotificationsController {
         metadata?: object;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        amount: import("@prisma/client/runtime/library").Decimal | null;
-        type: string;
-        title: string;
         userId: string | null;
         traderId: string | null;
+        type: string;
+        title: string;
         body: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal | null;
         channel: string;
         sentAt: Date | null;
         readAt: Date | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        createdAt: Date;
+    }>;
+    bulkSend(body: {
+        type: string;
+        title: string;
+        body?: string;
+        channels?: {
+            sms?: boolean;
+            email?: boolean;
+            inApp?: boolean;
+        };
+        expiryDate?: string;
+        amount?: number;
+    }): Promise<{
+        created: number;
+        tradersCount: number;
     }>;
 }

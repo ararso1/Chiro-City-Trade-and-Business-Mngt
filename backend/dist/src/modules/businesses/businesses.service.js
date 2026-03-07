@@ -19,7 +19,10 @@ let BusinessesService = class BusinessesService {
         this.fiscalYear = fiscalYear;
     }
     async create(dto) {
-        return this.prisma.business.create({ data: dto });
+        const data = { ...dto };
+        if (dto.startDate)
+            data.startDate = new Date(dto.startDate);
+        return this.prisma.business.create({ data });
     }
     async findAll(params) {
         const where = {};
@@ -62,7 +65,10 @@ let BusinessesService = class BusinessesService {
         });
     }
     async update(id, dto) {
-        return this.prisma.business.update({ where: { id }, data: dto });
+        const data = { ...dto };
+        if (dto.startDate !== undefined)
+            data.startDate = dto.startDate ? new Date(dto.startDate) : null;
+        return this.prisma.business.update({ where: { id }, data });
     }
 };
 exports.BusinessesService = BusinessesService;

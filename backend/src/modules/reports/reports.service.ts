@@ -22,7 +22,7 @@ export class ReportsService {
       openComplaints,
     ] = await Promise.all([
       this.prisma.trader.count({ where: { status: 'active', ...baseWhere } }),
-      this.prisma.license.count({ where: { status: 'active', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+      this.prisma.license.count({ where: { status: 'issued', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
       this.prisma.license.count({ where: { status: 'expired', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
       this.prisma.violation.count({ where: { resolvedAt: null, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
       this.prisma.complaint.count({ where: { status: 'open', ...baseWhere } }),

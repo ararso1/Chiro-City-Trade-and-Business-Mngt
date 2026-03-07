@@ -68,13 +68,16 @@ export declare class ComplaintsController {
             phone: string;
             userId: string | null;
             fullName: string;
-            idType: string | null;
-            idNumber: string | null;
+            gender: string | null;
+            dob: Date | null;
+            nationalId: string | null;
             address: string | null;
             woreda: string | null;
             kebele: string | null;
             photoUrl: string | null;
             status: string;
+            createdById: string | null;
+            approvedById: string | null;
             mesobRef: string | null;
         } | null;
         assignedTo: {

@@ -40,6 +40,12 @@ let NotificationsController = class NotificationsController {
     create(body) {
         return this.notifications.create(body);
     }
+    bulkSend(body) {
+        return this.notifications.bulkCreateForTraders({
+            ...body,
+            channels: body.channels ?? { inApp: true },
+        });
+    }
 };
 exports.NotificationsController = NotificationsController;
 __decorate([
@@ -70,6 +76,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('bulk'),
+    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "bulkSend", null);
 exports.NotificationsController = NotificationsController = __decorate([
     (0, swagger_1.ApiTags)('notifications'),
     (0, swagger_1.ApiBearerAuth)(),

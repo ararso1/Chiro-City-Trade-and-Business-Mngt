@@ -11,7 +11,9 @@ export class BusinessesService {
   ) {}
 
   async create(dto: CreateBusinessDto) {
-    return this.prisma.business.create({ data: dto as any });
+    const data: any = { ...dto };
+    if (dto.startDate) data.startDate = new Date(dto.startDate);
+    return this.prisma.business.create({ data });
   }
 
   async findAll(params?: { search?: string; status?: string; traderId?: string; skip?: number; take?: number }) {
@@ -54,6 +56,8 @@ export class BusinessesService {
   }
 
   async update(id: string, dto: UpdateBusinessDto) {
-    return this.prisma.business.update({ where: { id }, data: dto as any });
+    const data: any = { ...dto };
+    if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
+    return this.prisma.business.update({ where: { id }, data });
   }
 }

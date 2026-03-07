@@ -54,6 +54,63 @@ let NotificationsService = class NotificationsService {
             data: { readAt: new Date() },
         });
     }
+    async bulkCreateForTraders(data) {
+        const traders = await this.prisma.trader.findMany({
+            where: { status: { not: 'closed' } },
+            select: { id: true, fullName: true, email: true, phone: true },
+        });
+        const metadata = {
+            sendSms: data.channels.sms ?? false,
+            sendEmail: data.channels.email ?? false,
+        };
+        if (data.expiryDate)
+            metadata.expiryDate = data.expiryDate;
+        const inApp = data.channels.inApp !== false;
+        let created = 0;
+        for (const trader of traders) {
+            if (inApp) {
+                await this.prisma.notification.create({
+                    data: {
+                        traderId: trader.id,
+                        type: data.type,
+                        title: data.title,
+                        body: data.body ?? null,
+                        channel: 'in_app',
+                        amount: data.amount != null ? new library_1.Decimal(data.amount) : undefined,
+                        metadata: metadata,
+                    },
+                });
+                created++;
+            }
+            if (data.channels.sms && trader.phone) {
+                await this.prisma.notification.create({
+                    data: {
+                        traderId: trader.id,
+                        type: data.type,
+                        title: data.title,
+                        body: data.body ?? null,
+                        channel: 'sms',
+                        metadata: metadata,
+                    },
+                });
+                created++;
+            }
+            if (data.channels.email && trader.email) {
+                await this.prisma.notification.create({
+                    data: {
+                        traderId: trader.id,
+                        type: data.type,
+                        title: data.title,
+                        body: data.body ?? null,
+                        channel: 'email',
+                        metadata: metadata,
+                    },
+                });
+                created++;
+            }
+        }
+        return { created, tradersCount: traders.length };
+    }
 };
 exports.NotificationsService = NotificationsService;
 exports.NotificationsService = NotificationsService = __decorate([

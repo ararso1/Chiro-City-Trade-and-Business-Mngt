@@ -37,7 +37,7 @@ export declare class InspectionsService {
             business: {
                 id: string;
                 name: string;
-                address: string;
+                address: string | null;
             };
             violations: {
                 id: string;
@@ -78,13 +78,16 @@ export declare class InspectionsService {
                 phone: string;
                 userId: string | null;
                 fullName: string;
-                idType: string | null;
-                idNumber: string | null;
+                gender: string | null;
+                dob: Date | null;
+                nationalId: string | null;
                 address: string | null;
                 woreda: string | null;
                 kebele: string | null;
                 photoUrl: string | null;
                 status: string;
+                createdById: string | null;
+                approvedById: string | null;
                 mesobRef: string | null;
             };
         } & {
@@ -94,14 +97,17 @@ export declare class InspectionsService {
             updatedAt: Date;
             email: string | null;
             phone: string | null;
-            address: string;
+            type: string | null;
+            address: string | null;
             woreda: string | null;
             kebele: string | null;
             status: string;
             mesobRef: string | null;
+            startDate: Date | null;
             traderId: string;
-            tradeName: string | null;
             category: string;
+            shopNo: string | null;
+            tradeName: string | null;
             subCategory: string | null;
             tin: string | null;
         };

@@ -20,12 +20,13 @@ const trader_dto_1 = require("./dto/trader.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const permissions_guard_1 = require("../auth/permissions.guard");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
+const current_user_decorator_1 = require("../auth/current-user.decorator");
 let TradersController = class TradersController {
     constructor(traders) {
         this.traders = traders;
     }
-    create(dto) {
-        return this.traders.create(dto);
+    create(dto, userId) {
+        return this.traders.create(dto, userId);
     }
     findAll(search, status, skip, take) {
         return this.traders.findAll({
@@ -47,8 +48,9 @@ __decorate([
     (0, common_1.Post)(),
     (0, permissions_decorator_1.RequirePermissions)('traders.create', '*'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [trader_dto_1.CreateTraderDto]),
+    __metadata("design:paramtypes", [trader_dto_1.CreateTraderDto, String]),
     __metadata("design:returntype", void 0)
 ], TradersController.prototype, "create", null);
 __decorate([

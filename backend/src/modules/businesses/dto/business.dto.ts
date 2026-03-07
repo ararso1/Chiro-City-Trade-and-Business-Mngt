@@ -1,5 +1,7 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export const BUSINESS_STATUSES = ['draft', 'pending', 'active', 'suspended', 'closed'] as const;
 
 export class CreateBusinessDto {
   @IsString()
@@ -19,10 +21,17 @@ export class CreateBusinessDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   subCategory?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  address: string;
+  address?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -33,6 +42,16 @@ export class CreateBusinessDto {
   @IsOptional()
   @IsString()
   kebele?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  shopNo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -79,6 +98,11 @@ export class UpdateBusinessDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   subCategory?: string;
 
   @ApiPropertyOptional()
@@ -95,6 +119,16 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
   kebele?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  shopNo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

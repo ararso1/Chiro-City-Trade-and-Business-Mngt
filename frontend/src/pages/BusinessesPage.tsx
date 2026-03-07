@@ -31,6 +31,23 @@ import { Briefcase, Plus, Search, Loader2 } from 'lucide-react';
 import { api } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
+const BUSINESS_STATUSES = ['draft', 'pending', 'active', 'suspended', 'closed'];
+
+const emptyForm = () => ({
+  traderId: '',
+  name: '',
+  category: '',
+  type: '',
+  woreda: '',
+  kebele: '',
+  shopNo: '',
+  startDate: '',
+  address: '',
+  phone: '',
+  tin: '',
+  status: 'pending',
+});
+
 export default function BusinessesPage() {
   const { hasPermission } = useAuth();
   const [items, setItems] = useState<any[]>([]);
@@ -39,14 +56,7 @@ export default function BusinessesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    traderId: '',
-    name: '',
-    category: '',
-    address: '',
-    phone: '',
-    tin: '',
-  });
+  const [form, setForm] = useState(emptyForm());
 
   const canCreate = hasPermission('businesses.create') || hasPermission('*');
 
@@ -73,15 +83,29 @@ export default function BusinessesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.traderId || !form.name || !form.category || !form.address) {
-      toast({ title: 'Missing fields', variant: 'destructive' });
+    if (!form.traderId || !form.name || !form.category) {
+      toast({ title: 'Missing required fields', variant: 'destructive' });
       return;
     }
     try {
-      await api.businesses.create(form);
+      const payload: Record<string, string> = {
+        traderId: form.traderId,
+        name: form.name,
+        category: form.category,
+      };
+      if (form.type) payload.type = form.type;
+      if (form.woreda) payload.woreda = form.woreda;
+      if (form.kebele) payload.kebele = form.kebele;
+      if (form.shopNo) payload.shopNo = form.shopNo;
+      if (form.startDate) payload.startDate = form.startDate;
+      if (form.address) payload.address = form.address;
+      if (form.phone) payload.phone = form.phone;
+      if (form.tin) payload.tin = form.tin;
+      if (form.status) payload.status = form.status;
+      await api.businesses.create(payload);
       toast({ title: 'Business registered' });
       setOpen(false);
-      setForm({ traderId: '', name: '', category: '', address: '', phone: '', tin: '' });
+      setForm(emptyForm());
       load();
     } catch (e) {
       toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' });
@@ -133,8 +157,9 @@ export default function BusinessesPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Trader</TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead>Woreda</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -143,10 +168,13 @@ export default function BusinessesPage() {
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.name}</TableCell>
                     <TableCell>{b.category}</TableCell>
+                    <TableCell>{b.type ?? '-'}</TableCell>
                     <TableCell>{b.trader?.fullName ?? '-'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{b.address}</TableCell>
+                    <TableCell>{b.woreda ?? '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>{b.status}</Badge>
+                      <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>
+                        {b.status}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -160,7 +188,7 @@ export default function BusinessesPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Register business</DialogTitle>
             <CardDescription>Link a business to a trader</CardDescription>
@@ -178,7 +206,9 @@ export default function BusinessesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {traders.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.fullName} ({t.email})</SelectItem>
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.fullName} ({t.email})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -191,21 +221,63 @@ export default function BusinessesPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label>Category *</Label>
-              <Input
-                placeholder="e.g. Retail, Food, Services"
-                value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category *</Label>
+                <Input
+                  placeholder="e.g. Retail, Food, Services"
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Input
+                  placeholder="e.g. retail, wholesale"
+                  value={form.type}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Woreda</Label>
+                <Input
+                  value={form.woreda}
+                  onChange={(e) => setForm((f) => ({ ...f, woreda: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Kebele</Label>
+                <Input
+                  value={form.kebele}
+                  onChange={(e) => setForm((f) => ({ ...f, kebele: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Shop number</Label>
+                <Input
+                  value={form.shopNo}
+                  onChange={(e) => setForm((f) => ({ ...f, shopNo: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Start date</Label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Address *</Label>
+              <Label>Address</Label>
               <Input
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -224,8 +296,28 @@ export default function BusinessesPage() {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
               <Button type="submit">Register</Button>
             </DialogFooter>
           </form>

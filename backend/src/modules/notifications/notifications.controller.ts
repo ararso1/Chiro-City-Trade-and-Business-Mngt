@@ -55,4 +55,24 @@ export class NotificationsController {
   ) {
     return this.notifications.create(body);
   }
+
+  @Post('bulk')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('notifications.create', '*')
+  bulkSend(
+    @Body()
+    body: {
+      type: string;
+      title: string;
+      body?: string;
+      channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+      expiryDate?: string;
+      amount?: number;
+    },
+  ) {
+    return this.notifications.bulkCreateForTraders({
+      ...body,
+      channels: body.channels ?? { inApp: true },
+    });
+  }
 }

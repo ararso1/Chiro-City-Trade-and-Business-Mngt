@@ -5,6 +5,7 @@ import { CreateLicenseDto, UpdateLicenseDto } from './dto/license.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('licenses')
 @ApiBearerAuth()
@@ -23,12 +24,14 @@ export class LicensesController {
   @RequirePermissions('licenses.read', '*')
   findAll(
     @Query('businessId') businessId?: string,
+    @Query('traderId') traderId?: string,
     @Query('status') status?: string,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
   ) {
     return this.licenses.findAll({
       businessId,
+      traderId,
       status,
       skip: skip ? parseInt(skip, 10) : undefined,
       take: take ? parseInt(take, 10) : undefined,
@@ -43,7 +46,11 @@ export class LicensesController {
 
   @Put(':id')
   @RequirePermissions('licenses.update', '*')
-  update(@Param('id') id: string, @Body() dto: UpdateLicenseDto) {
-    return this.licenses.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateLicenseDto, @CurrentUser('sub') userId?: string) {
+    const payload = { ...dto };
+    if (dto.status === 'issued' && !dto.issuedById && userId) {
+      (payload as any).issuedById = userId;
+    }
+    return this.licenses.update(id, payload);
   }
 }

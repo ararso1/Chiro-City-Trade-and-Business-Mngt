@@ -1,5 +1,7 @@
-import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'] as const;
 
 export class CreateTraderDto {
   @ApiPropertyOptional()
@@ -10,21 +12,25 @@ export class CreateTraderDto {
   @IsString()
   fullName: string;
 
-  @IsEmail()
-  email: string;
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
 
   @IsString()
   phone: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  idType?: string;
+  @IsEmail()
+  email: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  idNumber?: string;
+  nationalId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -50,6 +56,16 @@ export class CreateTraderDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  createdById?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  approvedById?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -65,6 +81,16 @@ export class UpdateTraderDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsEmail()
   email?: string;
 
@@ -76,12 +102,7 @@ export class UpdateTraderDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  idType?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  idNumber?: string;
+  nationalId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -107,4 +128,9 @@ export class UpdateTraderDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  approvedById?: string;
 }

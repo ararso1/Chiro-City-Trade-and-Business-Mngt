@@ -5,6 +5,7 @@ import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('traders')
 @ApiBearerAuth()
@@ -15,8 +16,8 @@ export class TradersController {
 
   @Post()
   @RequirePermissions('traders.create', '*')
-  create(@Body() dto: CreateTraderDto) {
-    return this.traders.create(dto);
+  create(@Body() dto: CreateTraderDto, @CurrentUser('sub') userId?: string) {
+    return this.traders.create(dto, userId);
   }
 
   @Get()
