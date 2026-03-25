@@ -5,21 +5,23 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/layout/Layout";
 
-import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
-import TradersPage from "./pages/TradersPage";
-import TraderDetailPage from "./pages/TraderDetailPage";
-import BusinessesPage from "./pages/BusinessesPage";
-import LicensesPage from "./pages/LicensesPage";
-import FinancePage from "./pages/FinancePage";
-import InspectionsPage from "./pages/InspectionsPage";
-import ComplaintsPage from "./pages/ComplaintsPage";
-import ArchivePage from "./pages/ArchivePage";
-import ReportsPage from "./pages/ReportsPage";
-import NotificationsPage from "./pages/NotificationsPage";
-import UsersPage from "./pages/UsersPage";
-import SettingsPage from "./pages/SettingsPage";
-import NotFound from "./pages/NotFound";
+import {
+  LoginPage,
+  Dashboard,
+  TradersPage,
+  TraderDetailPage,
+  BusinessesPage,
+  LicensesPage,
+  FinancePage,
+  InspectionsPage,
+  ComplaintsPage,
+  ArchivePage,
+  ReportsPage,
+  NotificationsPage,
+  UsersPage,
+  SettingsPage,
+  NotFound,
+} from "./pages";
 
 const queryClient = new QueryClient();
 

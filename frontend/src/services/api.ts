@@ -1,8 +1,8 @@
 /**
  * Chiro City Trade Management API client.
- * Set VITE_API_BASE in .env (e.g. http://localhost:3001) or leave empty for same-origin.
+ * Set VITE_API_BASE in .env (e.g. http://localhost:3003) or leave empty for same-origin.
  */
-const BASE = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3001';
+const BASE = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
 
 function getToken(): string | null {
   return localStorage.getItem('chiro_trade_token');
