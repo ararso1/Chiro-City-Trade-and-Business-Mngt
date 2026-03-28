@@ -211,4 +211,8 @@ export declare class TradersService {
         approvedById: string | null;
         mesobRef: string | null;
     }>;
+    remove(id: string): Promise<{
+        success: true;
+        id: string;
+    }>;
 }

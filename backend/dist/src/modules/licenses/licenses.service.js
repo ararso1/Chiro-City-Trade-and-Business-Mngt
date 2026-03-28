@@ -31,7 +31,7 @@ let LicensesService = class LicensesService {
             licenseType: dto.licenseType ?? null,
             issueDate: dto.issueDate ? new Date(dto.issueDate) : null,
             expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
-            status: dto.status ?? 'application',
+            status: 'application',
             qrCode: dto.qrCode ?? null,
             issuedById: dto.issuedById ?? null,
         };
@@ -80,6 +80,10 @@ let LicensesService = class LicensesService {
         if (dto.expiryDate !== undefined)
             data.expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : null;
         return this.prisma.license.update({ where: { id }, data: data });
+    }
+    async remove(id) {
+        await this.prisma.license.delete({ where: { id } });
+        return { success: true, id };
     }
 };
 exports.LicensesService = LicensesService;

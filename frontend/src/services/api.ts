@@ -8,6 +8,14 @@ function getToken(): string | null {
   return localStorage.getItem('chiro_trade_token');
 }
 
+export function getApiBase(): string {
+  return BASE;
+}
+
+export function getAuthToken(): string | null {
+  return getToken();
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { params?: Record<string, string> } = {}
@@ -65,6 +73,8 @@ export const api = {
     get: (id: string) => request<any>('/traders/' + id),
     create: (body: object) => request<any>('/traders', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: object) => request<any>('/traders/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) =>
+      request<{ success: boolean; id: string }>('/traders/' + id, { method: 'DELETE' }),
   },
   businesses: {
     list: (params?: { search?: string; status?: string; traderId?: string; skip?: number; take?: number }) =>
@@ -72,6 +82,8 @@ export const api = {
     get: (id: string) => request<any>('/businesses/' + id),
     create: (body: object) => request<any>('/businesses', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: object) => request<any>('/businesses/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) =>
+      request<{ success: boolean; id: string }>('/businesses/' + id, { method: 'DELETE' }),
   },
   licenses: {
     list: (params?: { businessId?: string; traderId?: string; status?: string; skip?: number; take?: number }) =>
@@ -79,6 +91,8 @@ export const api = {
     get: (id: string) => request<any>('/licenses/' + id),
     create: (body: object) => request<any>('/licenses', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: object) => request<any>('/licenses/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) =>
+      request<{ success: boolean; id: string }>('/licenses/' + id, { method: 'DELETE' }),
   },
   finance: {
     taxTypes: () => request<any[]>('/finance/tax-types'),
@@ -103,6 +117,50 @@ export const api = {
     business: (businessId: string) => request<any[]>('/documents/business/' + businessId),
     search: (query?: string, type?: string) =>
       request<{ traderDocuments: any[]; businessDocuments: any[] }>('/documents/search', { params: { query: query ?? '', type: type ?? '' } }),
+    list: (params: { scope: 'trader' | 'business'; query?: string; type?: string; traderId?: string; businessId?: string; skip?: number; take?: number }) =>
+      request<{ items: any[]; total: number }>('/documents/list', { params: params as any }),
+    uploadTrader: async (traderId: string, body: { type: string; name?: string; file: File }) => {
+      const token = getToken();
+      const fd = new FormData();
+      fd.append('type', body.type);
+      if (body.name) fd.append('name', body.name);
+      fd.append('file', body.file);
+      const res = await fetch(`${BASE}/documents/trader/${traderId}/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    uploadBusiness: async (businessId: string, body: { type: string; name?: string; file: File }) => {
+      const token = getToken();
+      const fd = new FormData();
+      fd.append('type', body.type);
+      if (body.name) fd.append('name', body.name);
+      fd.append('file', body.file);
+      const res = await fetch(`${BASE}/documents/business/${businessId}/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    updateTraderDoc: (docId: string, body: { name?: string; type?: string }) =>
+      request<any>('/documents/trader-doc/' + docId, { method: 'PUT', body: JSON.stringify(body) }),
+    updateBusinessDoc: (docId: string, body: { name?: string; type?: string }) =>
+      request<any>('/documents/business-doc/' + docId, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteTraderDoc: (docId: string) =>
+      request<{ success: boolean; id?: string }>('/documents/trader-doc/' + docId, { method: 'DELETE' }),
+    deleteBusinessDoc: (docId: string) =>
+      request<{ success: boolean; id?: string }>('/documents/business-doc/' + docId, { method: 'DELETE' }),
   },
   complaints: {
     list: (params?: { status?: string; traderId?: string; skip?: number; take?: number }) =>

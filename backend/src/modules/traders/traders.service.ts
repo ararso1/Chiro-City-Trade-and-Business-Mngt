@@ -14,6 +14,8 @@ export class TradersService {
     const data: any = { ...dto };
     if (dto.dob) data.dob = new Date(dto.dob);
     if (createdById) data.createdById = createdById;
+    // Registration creates the trader in "submitted" state automatically.
+    data.status = 'submitted';
     return this.prisma.trader.create({ data });
   }
 
@@ -64,5 +66,10 @@ export class TradersService {
     const data: any = { ...dto };
     if (dto.dob !== undefined) data.dob = dto.dob ? new Date(dto.dob) : null;
     return this.prisma.trader.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    await this.prisma.trader.delete({ where: { id } });
+    return { success: true as const, id };
   }
 }

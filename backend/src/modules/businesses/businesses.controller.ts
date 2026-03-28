@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { BusinessesService } from './businesses.service';
 import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
@@ -47,5 +47,11 @@ export class BusinessesController {
   @RequirePermissions('businesses.update', '*')
   update(@Param('id') id: string, @Body() dto: UpdateBusinessDto) {
     return this.businesses.update(id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('businesses.delete')
+  remove(@Param('id') id: string) {
+    return this.businesses.remove(id);
   }
 }

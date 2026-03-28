@@ -47,6 +47,9 @@ let LicensesController = class LicensesController {
         }
         return this.licenses.update(id, payload);
     }
+    remove(id) {
+        return this.licenses.remove(id);
+    }
 };
 exports.LicensesController = LicensesController;
 __decorate([
@@ -87,6 +90,14 @@ __decorate([
     __metadata("design:paramtypes", [String, license_dto_1.UpdateLicenseDto, String]),
     __metadata("design:returntype", void 0)
 ], LicensesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('licenses.delete'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LicensesController.prototype, "remove", null);
 exports.LicensesController = LicensesController = __decorate([
     (0, swagger_1.ApiTags)('licenses'),
     (0, swagger_1.ApiBearerAuth)(),

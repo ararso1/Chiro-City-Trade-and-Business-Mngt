@@ -22,7 +22,8 @@ export class LicensesService {
       licenseType: dto.licenseType ?? null,
       issueDate: dto.issueDate ? new Date(dto.issueDate) : null,
       expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
-      status: dto.status ?? 'application',
+      // Registration creates the license application in "application" state automatically.
+      status: 'application',
       qrCode: dto.qrCode ?? null,
       issuedById: dto.issuedById ?? null,
     };
@@ -75,5 +76,10 @@ export class LicensesService {
     if (dto.issueDate !== undefined) data.issueDate = dto.issueDate ? new Date(dto.issueDate) : null;
     if (dto.expiryDate !== undefined) data.expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : null;
     return this.prisma.license.update({ where: { id }, data: data as any });
+  }
+
+  async remove(id: string) {
+    await this.prisma.license.delete({ where: { id } });
+    return { success: true as const, id };
   }
 }

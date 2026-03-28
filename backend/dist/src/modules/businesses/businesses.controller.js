@@ -42,6 +42,9 @@ let BusinessesController = class BusinessesController {
     update(id, dto) {
         return this.businesses.update(id, dto);
     }
+    remove(id) {
+        return this.businesses.remove(id);
+    }
 };
 exports.BusinessesController = BusinessesController;
 __decorate([
@@ -81,6 +84,14 @@ __decorate([
     __metadata("design:paramtypes", [String, business_dto_1.UpdateBusinessDto]),
     __metadata("design:returntype", void 0)
 ], BusinessesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('businesses.delete'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], BusinessesController.prototype, "remove", null);
 exports.BusinessesController = BusinessesController = __decorate([
     (0, swagger_1.ApiTags)('businesses'),
     (0, swagger_1.ApiBearerAuth)(),

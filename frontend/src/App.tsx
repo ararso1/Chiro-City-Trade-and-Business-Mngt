@@ -10,6 +10,8 @@ import {
   Dashboard,
   TradersPage,
   TraderDetailPage,
+  TraderEditPage,
+  TraderRegistrationPage,
   BusinessesPage,
   LicensesPage,
   FinancePage,
@@ -122,6 +124,8 @@ function AppRoutes() {
         data-path="src/App.tsx"
       >
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="traders/register" element={<TraderRegistrationPage />} />
+        <Route path="traders/:id/edit" element={<TraderEditPage />} />
         <Route path="traders/:id" element={<TraderDetailPage />} />
         <Route path="traders" element={<TradersPage />} />
         <Route path="businesses" element={<BusinessesPage />} />

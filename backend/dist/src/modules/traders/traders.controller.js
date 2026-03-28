@@ -42,6 +42,9 @@ let TradersController = class TradersController {
     update(id, dto) {
         return this.traders.update(id, dto);
     }
+    remove(id) {
+        return this.traders.remove(id);
+    }
 };
 exports.TradersController = TradersController;
 __decorate([
@@ -81,6 +84,14 @@ __decorate([
     __metadata("design:paramtypes", [String, trader_dto_1.UpdateTraderDto]),
     __metadata("design:returntype", void 0)
 ], TradersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('traders.delete'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TradersController.prototype, "remove", null);
 exports.TradersController = TradersController = __decorate([
     (0, swagger_1.ApiTags)('traders'),
     (0, swagger_1.ApiBearerAuth)(),

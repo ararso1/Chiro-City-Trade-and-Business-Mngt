@@ -24,6 +24,7 @@ let TradersService = class TradersService {
             data.dob = new Date(dto.dob);
         if (createdById)
             data.createdById = createdById;
+        data.status = 'submitted';
         return this.prisma.trader.create({ data });
     }
     async findAll(params) {
@@ -74,6 +75,10 @@ let TradersService = class TradersService {
         if (dto.dob !== undefined)
             data.dob = dto.dob ? new Date(dto.dob) : null;
         return this.prisma.trader.update({ where: { id }, data });
+    }
+    async remove(id) {
+        await this.prisma.trader.delete({ where: { id } });
+        return { success: true, id };
     }
 };
 exports.TradersService = TradersService;

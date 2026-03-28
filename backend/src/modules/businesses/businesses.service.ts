@@ -13,6 +13,8 @@ export class BusinessesService {
   async create(dto: CreateBusinessDto) {
     const data: any = { ...dto };
     if (dto.startDate) data.startDate = new Date(dto.startDate);
+    // Registration creates the business in "pending" state automatically.
+    data.status = 'pending';
     return this.prisma.business.create({ data });
   }
 
@@ -59,5 +61,10 @@ export class BusinessesService {
     const data: any = { ...dto };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     return this.prisma.business.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    await this.prisma.business.delete({ where: { id } });
+    return { success: true as const, id };
   }
 }

@@ -220,4 +220,8 @@ export declare class BusinessesService {
         subCategory: string | null;
         tin: string | null;
     }>;
+    remove(id: string): Promise<{
+        success: true;
+        id: string;
+    }>;
 }

@@ -149,4 +149,8 @@ export declare class LicensesController {
         issuedById: string | null;
         renewalReminderSent: boolean;
     }>;
+    remove(id: string): Promise<{
+        success: true;
+        id: string;
+    }>;
 }

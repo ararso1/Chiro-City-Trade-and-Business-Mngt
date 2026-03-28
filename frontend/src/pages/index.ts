@@ -3,7 +3,7 @@ export { LoginPage } from './auth';
 
 // Main
 export { Dashboard } from './dashboard';
-export { TradersPage, TraderDetailPage } from './traders';
+export { TradersPage, TraderDetailPage, TraderEditPage, TraderRegistrationPage } from './traders';
 export { BusinessesPage } from './businesses';
 export { LicensesPage } from './licenses';
 export { FinancePage } from './finance';

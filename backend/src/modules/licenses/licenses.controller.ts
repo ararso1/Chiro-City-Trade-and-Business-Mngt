@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { LicensesService } from './licenses.service';
 import { CreateLicenseDto, UpdateLicenseDto } from './dto/license.dto';
@@ -52,5 +52,11 @@ export class LicensesController {
       (payload as any).issuedById = userId;
     }
     return this.licenses.update(id, payload);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('licenses.delete')
+  remove(@Param('id') id: string) {
+    return this.licenses.remove(id);
   }
 }

@@ -212,4 +212,8 @@ export declare class BusinessesController {
         subCategory: string | null;
         tin: string | null;
     }>;
+    remove(id: string): Promise<{
+        success: true;
+        id: string;
+    }>;
 }

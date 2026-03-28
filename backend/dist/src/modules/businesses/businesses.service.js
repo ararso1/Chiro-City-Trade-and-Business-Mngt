@@ -22,6 +22,7 @@ let BusinessesService = class BusinessesService {
         const data = { ...dto };
         if (dto.startDate)
             data.startDate = new Date(dto.startDate);
+        data.status = 'pending';
         return this.prisma.business.create({ data });
     }
     async findAll(params) {
@@ -69,6 +70,10 @@ let BusinessesService = class BusinessesService {
         if (dto.startDate !== undefined)
             data.startDate = dto.startDate ? new Date(dto.startDate) : null;
         return this.prisma.business.update({ where: { id }, data });
+    }
+    async remove(id) {
+        await this.prisma.business.delete({ where: { id } });
+        return { success: true, id };
     }
 };
 exports.BusinessesService = BusinessesService;

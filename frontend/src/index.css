@@ -59,6 +59,13 @@
     --chart-4: 43 74% 66%;
 
     --chart-5: 27 87% 67%;
+
+    /* Reusable “app flow” surfaces (registration, wizards, onboarding) */
+    --app-flow-accent: 173 45% 38%;
+    --app-flow-accent-foreground: 0 0% 98%;
+    --app-flow-muted: 210 30% 97%;
+    --app-flow-border: 214 20% 88%;
+    --app-flow-glow: 173 45% 38%;
   }
 
   .dark {
@@ -102,6 +109,12 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    --app-flow-accent: 172 50% 45%;
+    --app-flow-accent-foreground: 180 20% 8%;
+    --app-flow-muted: 220 16% 12%;
+    --app-flow-border: 220 14% 20%;
+    --app-flow-glow: 172 50% 45%;
   }
 }
 
@@ -112,5 +125,22 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .app-flow-page {
+    @apply min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[hsl(var(--app-flow-muted))] to-background;
+  }
+
+  .app-flow-card {
+    @apply border border-[hsl(var(--app-flow-border))] bg-card shadow-sm;
+    box-shadow:
+      0 1px 0 0 hsl(var(--app-flow-glow) / 0.08),
+      0 18px 48px -28px hsl(var(--app-flow-glow) / 0.22);
+  }
+
+  .app-flow-step-ring {
+    @apply ring-2 ring-[hsl(var(--app-flow-accent)/0.35)] ring-offset-2 ring-offset-background;
   }
 }
