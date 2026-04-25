@@ -9,7 +9,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateTraderDto = exports.CreateTraderDto = exports.TRADER_STATUSES = void 0;
+exports.BulkImportTradersDto = exports.UpdateTraderDto = exports.CreateTraderDto = exports.TRADER_STATUSES = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 exports.TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'];
@@ -174,4 +175,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateTraderDto.prototype, "approvedById", void 0);
+class BulkImportTradersDto {
+}
+exports.BulkImportTradersDto = BulkImportTradersDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ type: [CreateTraderDto], description: 'Up to 500 trader rows (same fields as create).' }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(1),
+    (0, class_validator_1.ArrayMaxSize)(500),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => CreateTraderDto),
+    __metadata("design:type", Array)
+], BulkImportTradersDto.prototype, "traders", void 0);
 //# sourceMappingURL=trader.dto.js.map

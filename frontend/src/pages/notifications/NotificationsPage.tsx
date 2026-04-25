@@ -14,10 +14,21 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -25,6 +36,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -42,6 +59,10 @@ import {
   FileCheck,
   Calendar,
   Megaphone,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  UploadCloud,
 } from "lucide-react";
 import { format } from "date-fns";
 import { api } from "@/services/api";
@@ -69,6 +90,11 @@ export default function NotificationsPage() {
   const [readFilter, setReadFilter] = useState<string>("__all__");
   const [sendDialog, setSendDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     type: "announcement" as AnnouncementType,
@@ -155,6 +181,10 @@ export default function NotificationsPage() {
       toast({ title: "Enter a title", variant: "destructive" });
       return;
     }
+    if (!form.channels.inApp && !form.channels.sms && !form.channels.email) {
+      toast({ title: "Select at least one delivery method", variant: "destructive" });
+      return;
+    }
     setSending(true);
     try {
       const body: Parameters<typeof api.notifications.bulkSend>[0] = {
@@ -171,9 +201,17 @@ export default function NotificationsPage() {
         body.expiryDate = form.expiryDate;
       }
       const res = await api.notifications.bulkSend(body);
+      const smsSummary =
+        form.channels.sms
+          ? ` SMS: ${res.smsSent ?? 0} sent, ${res.smsFailed ?? 0} failed.`
+          : "";
       toast({
         title: "Sent",
-        description: `Notification sent to ${res.tradersCount} traders (${res.created} delivery entries). In-app${form.channels.email ? " + email" : ""}${form.channels.sms ? " + SMS" : ""}.`,
+        description: `General notification sent to ${res.tradersCount} traders (${res.created} delivery entries). In-app${form.channels.email ? " + email" : ""}${form.channels.sms ? " + SMS" : ""}.${smsSummary}`,
+        variant:
+          form.channels.sms && (res.smsSent ?? 0) === 0 && (res.smsFailed ?? 0) > 0
+            ? "destructive"
+            : "default",
       });
       setSendDialog(false);
       setForm({
@@ -192,6 +230,105 @@ export default function NotificationsPage() {
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const isDraft = (n: any) => Boolean(n?.metadata?.draft);
+
+  const handleSaveDraft = async () => {
+    if (!form.title.trim()) {
+      toast({ title: "Enter a title", variant: "destructive" });
+      return;
+    }
+    if (!form.channels.inApp && !form.channels.sms && !form.channels.email) {
+      toast({ title: "Select at least one delivery method", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      await api.notifications.saveDraft({
+        type: form.type,
+        title: form.title.trim(),
+        body: form.message.trim() || undefined,
+        channels: {
+          inApp: form.channels.inApp,
+          sms: form.channels.sms,
+          email: form.channels.email,
+        },
+        deadline: form.expiryDate || undefined,
+      });
+      toast({
+        title: "Draft saved",
+        description: `Draft saved with channels:${form.channels.inApp ? " in-app" : ""}${form.channels.sms ? " SMS" : ""}${form.channels.email ? " Email" : ""}. Publish later from card actions.`,
+      });
+      setSendDialog(false);
+      await loadInbox();
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleUpdateNotification = async () => {
+    if (!editing?.id) return;
+    if (!editing?.channels?.inApp && !editing?.channels?.sms && !editing?.channels?.email) {
+      toast({ title: "Select at least one delivery method", variant: "destructive" });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const channel = editing.channels?.sms
+        ? "sms"
+        : editing.channels?.email
+        ? "email"
+        : "in_app";
+      await api.notifications.update(editing.id, {
+        title: editing.title,
+        body: editing.body ?? null,
+        channel,
+        channels: {
+          inApp: Boolean(editing.channels?.inApp),
+          sms: Boolean(editing.channels?.sms),
+          email: Boolean(editing.channels?.email),
+        },
+        deadline: editing.deadline || null,
+      });
+      toast({ title: "Updated", description: "Notification updated." });
+      setEditing(null);
+      await loadInbox();
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteNotification = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleting(true);
+    try {
+      await api.notifications.delete(deleteTarget.id);
+      toast({ title: "Deleted", description: "Notification removed." });
+      setDeleteTarget(null);
+      await loadInbox();
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handlePublishDraft = async (id: string) => {
+    setPublishingId(id);
+    try {
+      await api.notifications.publishDraft(id);
+      toast({ title: "Published", description: "Draft is now published." });
+      await loadInbox();
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setPublishingId(null);
     }
   };
 
@@ -244,6 +381,29 @@ export default function NotificationsPage() {
     }
   };
 
+  const getChannels = (n: any) => {
+    const fromMeta = n?.metadata?.channels;
+    if (fromMeta && typeof fromMeta === "object") {
+      return {
+        inApp: Boolean(fromMeta.inApp),
+        sms: Boolean(fromMeta.sms),
+        email: Boolean(fromMeta.email),
+      };
+    }
+    if (n?.metadata && typeof n.metadata === "object") {
+      return {
+        inApp: n?.channel === "in_app" || Boolean(n.metadata.sendInApp),
+        sms: Boolean(n.metadata.sendSms) || n?.channel === "sms",
+        email: Boolean(n.metadata.sendEmail) || n?.channel === "email",
+      };
+    }
+    return {
+      inApp: n?.channel === "in_app",
+      sms: n?.channel === "sms",
+      email: n?.channel === "email",
+    };
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -269,7 +429,7 @@ export default function NotificationsPage() {
             <DialogTrigger asChild>
               <Button>
                 <Send className="mr-2 h-4 w-4" />
-                Send to all traders
+                Send Announcement
               </Button>
             </DialogTrigger>
           </Dialog>
@@ -379,8 +539,8 @@ export default function NotificationsPage() {
               {items.map((n) => (
                 <div
                   key={n.id}
-                  className={`border-l-4 rounded-lg p-4 transition-all hover:shadow-sm cursor-pointer ${getTypeBorder(n.type)} ${
-                    !n.readAt ? "bg-blue-50 dark:bg-blue-950/10" : "bg-card"
+                  className={`border-l-4 rounded-xl border border-[hsl(var(--app-flow-border))] p-4 transition-all hover:shadow-md hover:-translate-y-[1px] cursor-pointer ${getTypeBorder(n.type)} ${
+                    !n.readAt ? "bg-blue-50/70 dark:bg-blue-950/15" : "bg-card/90"
                   }`}
                   onClick={() => !n.readAt && handleMarkAsRead(n.id)}
                 >
@@ -392,6 +552,7 @@ export default function NotificationsPage() {
                         <Badge variant="outline" className="text-xs">
                           {getTypeLabel(n.type)}
                         </Badge>
+                        {isDraft(n) && <Badge variant="secondary" className="text-xs">Draft</Badge>}
                         {!n.readAt && (
                           <Badge variant="secondary" className="text-xs">
                             New
@@ -403,17 +564,66 @@ export default function NotificationsPage() {
                           {n.body}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>
                           {format(
                             new Date(n.createdAt),
                             "MMM dd, yyyy HH:mm"
                           )}
                         </span>
-                        {n.channel && (
-                          <span className="capitalize">{n.channel}</span>
-                        )}
+                        {getChannels(n).inApp && <Badge variant="outline" className="text-[10px]">In-app</Badge>}
+                        {getChannels(n).sms && <Badge variant="outline" className="text-[10px]">SMS</Badge>}
+                        {getChannels(n).email && <Badge variant="outline" className="text-[10px]">Email</Badge>}
+                        {n?.metadata?.deadline && <span>Deadline: {String(n.metadata.deadline)}</span>}
                       </div>
+                    </div>
+                    <div className="shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing({
+                                id: n.id,
+                                title: n.title ?? "",
+                                body: n.body ?? "",
+                                channels: getChannels(n),
+                                deadline: n?.metadata?.deadline ?? "",
+                              });
+                            }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          {isDraft(n) && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePublishDraft(n.id);
+                              }}
+                              disabled={publishingId === n.id}
+                            >
+                              <UploadCloud className="mr-2 h-4 w-4" />
+                              {publishingId === n.id ? "Publishing..." : "Publish draft"}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(n);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
@@ -423,11 +633,106 @@ export default function NotificationsPage() {
         </CardContent>
       </Card>
 
-      {/* Send to all traders dialog */}
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit notification</DialogTitle>
+            <DialogDescription>Update message text, deadline and delivery method.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Title</Label>
+              <Input value={editing?.title ?? ""} onChange={(e) => setEditing((p: any) => ({ ...p, title: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Textarea value={editing?.body ?? ""} onChange={(e) => setEditing((p: any) => ({ ...p, body: e.target.value }))} rows={3} />
+            </div>
+            <div>
+              <Label>Delivery methods</Label>
+              <div className="space-y-2 mt-2 rounded-lg border border-[hsl(var(--app-flow-border))] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">In-app</span>
+                  <Switch
+                    checked={Boolean(editing?.channels?.inApp)}
+                    onCheckedChange={(checked) =>
+                      setEditing((p: any) => ({
+                        ...p,
+                        channels: { ...(p?.channels ?? {}), inApp: checked },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">SMS</span>
+                  <Switch
+                    checked={Boolean(editing?.channels?.sms)}
+                    onCheckedChange={(checked) =>
+                      setEditing((p: any) => ({
+                        ...p,
+                        channels: { ...(p?.channels ?? {}), sms: checked },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Email</span>
+                  <Switch
+                    checked={Boolean(editing?.channels?.email)}
+                    onCheckedChange={(checked) =>
+                      setEditing((p: any) => ({
+                        ...p,
+                        channels: { ...(p?.channels ?? {}), email: checked },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label>Deadline</Label>
+              <Input type="date" value={editing?.deadline ?? ""} onChange={(e) => setEditing((p: any) => ({ ...p, deadline: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={savingEdit}>Cancel</Button>
+            <Button onClick={handleUpdateNotification} disabled={savingEdit}>
+              {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete notification?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this notification.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteNotification();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* General notification dialog */}
       <Dialog open={sendDialog} onOpenChange={setSendDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Send to all traders</DialogTitle>
+            <DialogTitle>Create Announcement</DialogTitle>
             <DialogDescription>
               Bulk SMS and email: annual tax payment, license expiry, random
               meetings, or general announcements
@@ -541,13 +846,16 @@ export default function NotificationsPage() {
               >
                 Cancel
               </Button>
+              <Button variant="secondary" onClick={handleSaveDraft} disabled={sending}>
+                Save draft
+              </Button>
               <Button onClick={handleSendBulk} disabled={sending}>
                 {sending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="mr-2 h-4 w-4" />
                 )}
-                Send to all traders
+                Send Announcement
               </Button>
             </div>
           </div>

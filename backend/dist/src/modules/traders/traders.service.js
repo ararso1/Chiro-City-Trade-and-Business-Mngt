@@ -11,7 +11,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TradersService = void 0;
 const common_1 = require("@nestjs/common");
+const class_transformer_1 = require("class-transformer");
+const class_validator_1 = require("class-validator");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const trader_dto_1 = require("./dto/trader.dto");
 const fiscal_year_service_1 = require("../fiscal-year/fiscal-year.service");
 let TradersService = class TradersService {
     constructor(prisma, fiscalYear) {
@@ -79,6 +82,38 @@ let TradersService = class TradersService {
     async remove(id) {
         await this.prisma.trader.delete({ where: { id } });
         return { success: true, id };
+    }
+    async bulkImport(rows, createdById) {
+        if (!Array.isArray(rows)) {
+            throw new common_1.BadRequestException('Body must include a traders array');
+        }
+        if (rows.length === 0) {
+            throw new common_1.BadRequestException('At least one trader row is required');
+        }
+        if (rows.length > 500) {
+            throw new common_1.BadRequestException('Maximum 500 traders per import');
+        }
+        const failed = [];
+        let created = 0;
+        for (let i = 0; i < rows.length; i++) {
+            const dto = (0, class_transformer_1.plainToInstance)(trader_dto_1.CreateTraderDto, rows[i]);
+            const errors = (0, class_validator_1.validateSync)(dto, { whitelist: true });
+            if (errors.length) {
+                const msg = errors
+                    .map((e) => (e.constraints ? Object.values(e.constraints).join(', ') : e.property))
+                    .join('; ');
+                failed.push({ index: i, error: msg || 'Validation failed' });
+                continue;
+            }
+            try {
+                await this.create(dto, createdById);
+                created++;
+            }
+            catch (e) {
+                failed.push({ index: i, error: e.message || 'Create failed' });
+            }
+        }
+        return { created, failed, total: rows.length };
     }
 };
 exports.TradersService = TradersService;

@@ -28,6 +28,9 @@ let TradersController = class TradersController {
     create(dto, userId) {
         return this.traders.create(dto, userId);
     }
+    bulkImport(body, userId) {
+        return this.traders.bulkImport(body.traders, userId);
+    }
     findAll(search, status, skip, take) {
         return this.traders.findAll({
             search,
@@ -56,6 +59,15 @@ __decorate([
     __metadata("design:paramtypes", [trader_dto_1.CreateTraderDto, String]),
     __metadata("design:returntype", void 0)
 ], TradersController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('bulk-import'),
+    (0, permissions_decorator_1.RequirePermissions)('traders.create', '*'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [trader_dto_1.BulkImportTradersDto, String]),
+    __metadata("design:returntype", void 0)
+], TradersController.prototype, "bulkImport", null);
 __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('traders.read', '*'),

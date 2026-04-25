@@ -215,4 +215,12 @@ export declare class TradersService {
         success: true;
         id: string;
     }>;
+    bulkImport(rows: unknown[], createdById?: string): Promise<{
+        created: number;
+        failed: {
+            index: number;
+            error: string;
+        }[];
+        total: number;
+    }>;
 }

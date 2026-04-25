@@ -30,3 +30,6 @@ export declare class UpdateTraderDto {
     status?: string;
     approvedById?: string;
 }
+export declare class BulkImportTradersDto {
+    traders: CreateTraderDto[];
+}

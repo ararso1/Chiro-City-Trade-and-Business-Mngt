@@ -75,6 +75,11 @@ export const api = {
     update: (id: string, body: object) => request<any>('/traders/' + id, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) =>
       request<{ success: boolean; id: string }>('/traders/' + id, { method: 'DELETE' }),
+    bulkImport: (traders: object[]) =>
+      request<{ created: number; failed: { index: number; error: string }[]; total: number }>('/traders/bulk-import', {
+        method: 'POST',
+        body: JSON.stringify({ traders }),
+      }),
   },
   businesses: {
     list: (params?: { search?: string; status?: string; traderId?: string; skip?: number; take?: number }) =>
@@ -173,6 +178,23 @@ export const api = {
     list: (params?: { type?: string; read?: string; skip?: number; take?: number }) =>
       request<{ items: any[]; total: number }>('/notifications', { params: params as Record<string, string> }),
     markRead: (id: string) => request<any>('/notifications/' + id + '/read', { method: 'PUT' }),
+    update: (
+      id: string,
+      body: {
+        type?: string;
+        title?: string;
+        body?: string | null;
+        channel?: string;
+        channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+        sentAt?: string | null;
+        deadline?: string | null;
+        draft?: boolean;
+      }
+    ) => request<any>('/notifications/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) => request<{ success: boolean; id: string }>('/notifications/' + id, { method: 'DELETE' }),
+    saveDraft: (body: { type: string; title: string; body?: string; channels?: { sms?: boolean; email?: boolean; inApp?: boolean }; deadline?: string }) =>
+      request<any>('/notifications/draft', { method: 'POST', body: JSON.stringify(body) }),
+    publishDraft: (id: string) => request<any>('/notifications/' + id + '/publish', { method: 'PUT' }),
     bulkSend: (body: {
       type: string;
       title: string;
@@ -181,7 +203,7 @@ export const api = {
       expiryDate?: string;
       amount?: number;
     }) =>
-      request<{ created: number; tradersCount: number }>('/notifications/bulk', {
+      request<{ created: number; tradersCount: number; smsSent?: number; smsFailed?: number; summaryNotificationId?: string | null }>('/notifications/bulk', {
         method: 'POST',
         body: JSON.stringify(body),
       }),

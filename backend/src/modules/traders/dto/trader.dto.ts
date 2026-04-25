@@ -1,5 +1,6 @@
-import { IsString, IsEmail, IsOptional, IsDateString } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsString, IsEmail, IsOptional, IsDateString, IsArray, ArrayMinSize, ArrayMaxSize, ValidateNested } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'] as const;
 
@@ -133,4 +134,14 @@ export class UpdateTraderDto {
   @IsOptional()
   @IsString()
   approvedById?: string;
+}
+
+export class BulkImportTradersDto {
+  @ApiProperty({ type: [CreateTraderDto], description: 'Up to 500 trader rows (same fields as create).' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => CreateTraderDto)
+  traders: CreateTraderDto[];
 }

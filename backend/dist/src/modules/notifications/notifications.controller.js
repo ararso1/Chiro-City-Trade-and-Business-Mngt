@@ -37,13 +37,29 @@ let NotificationsController = class NotificationsController {
     markRead(id) {
         return this.notifications.markRead(id);
     }
-    create(body) {
-        return this.notifications.create(body);
+    create(body, userId) {
+        return this.notifications.create({
+            ...body,
+            userId: body.userId ?? userId,
+        });
     }
-    bulkSend(body) {
+    update(id, body) {
+        return this.notifications.update(id, body);
+    }
+    saveDraft(body, userId) {
+        return this.notifications.saveDraftForUser(userId, body);
+    }
+    publish(id, userId) {
+        return this.notifications.publishDraft(id, userId);
+    }
+    remove(id) {
+        return this.notifications.remove(id);
+    }
+    bulkSend(body, userId) {
         return this.notifications.bulkCreateForTraders({
             ...body,
             channels: body.channels ?? { inApp: true },
+            createdByUserId: userId,
         });
     }
 };
@@ -72,17 +88,58 @@ __decorate([
     (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)('draft'),
+    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "saveDraft", null);
+__decorate([
+    (0, common_1.Put)(':id/publish'),
+    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "publish", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)('bulk'),
     (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.RequirePermissions)('notifications.create', '*'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "bulkSend", null);
 exports.NotificationsController = NotificationsController = __decorate([

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Delete } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -52,8 +52,63 @@ export class NotificationsController {
       channel: string;
       metadata?: object;
     },
+    @CurrentUser('sub') userId?: string,
   ) {
-    return this.notifications.create(body);
+    return this.notifications.create({
+      ...body,
+      userId: body.userId ?? userId,
+    });
+  }
+
+  @Put(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('notifications.create', '*')
+  update(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      type?: string;
+      title?: string;
+      body?: string | null;
+      channel?: string;
+      channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+      sentAt?: string | null;
+      deadline?: string | null;
+      draft?: boolean;
+    },
+  ) {
+    return this.notifications.update(id, body);
+  }
+
+  @Post('draft')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('notifications.create', '*')
+  saveDraft(
+    @Body()
+    body: {
+      type: string;
+      title: string;
+      body?: string;
+      channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+      deadline?: string;
+    },
+    @CurrentUser('sub') userId?: string,
+  ) {
+    return this.notifications.saveDraftForUser(userId!, body);
+  }
+
+  @Put(':id/publish')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('notifications.create', '*')
+  publish(@Param('id') id: string, @CurrentUser('sub') userId?: string) {
+    return this.notifications.publishDraft(id, userId);
+  }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('notifications.create', '*')
+  remove(@Param('id') id: string) {
+    return this.notifications.remove(id);
   }
 
   @Post('bulk')
@@ -69,10 +124,12 @@ export class NotificationsController {
       expiryDate?: string;
       amount?: number;
     },
+    @CurrentUser('sub') userId?: string,
   ) {
     return this.notifications.bulkCreateForTraders({
       ...body,
       channels: body.channels ?? { inApp: true },
+      createdByUserId: userId,
     });
   }
 }

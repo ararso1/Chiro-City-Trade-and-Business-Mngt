@@ -1,5 +1,5 @@
 import { TradersService } from './traders.service';
-import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
+import { BulkImportTradersDto, CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 export declare class TradersController {
     private traders;
     constructor(traders: TradersService);
@@ -22,6 +22,14 @@ export declare class TradersController {
         createdById: string | null;
         approvedById: string | null;
         mesobRef: string | null;
+    }>;
+    bulkImport(body: BulkImportTradersDto, userId?: string): Promise<{
+        created: number;
+        failed: {
+            index: number;
+            error: string;
+        }[];
+        total: number;
     }>;
     findAll(search?: string, status?: string, skip?: string, take?: string): Promise<{
         items: ({

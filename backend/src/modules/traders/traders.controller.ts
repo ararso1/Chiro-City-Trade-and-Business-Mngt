@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TradersService } from './traders.service';
-import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
+import { BulkImportTradersDto, CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermissions } from '../auth/permissions.decorator';
@@ -18,6 +18,12 @@ export class TradersController {
   @RequirePermissions('traders.create', '*')
   create(@Body() dto: CreateTraderDto, @CurrentUser('sub') userId?: string) {
     return this.traders.create(dto, userId);
+  }
+
+  @Post('bulk-import')
+  @RequirePermissions('traders.create', '*')
+  bulkImport(@Body() body: BulkImportTradersDto, @CurrentUser('sub') userId?: string) {
+    return this.traders.bulkImport(body.traders, userId);
   }
 
   @Get()

@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 import { FiscalYearService } from '../fiscal-year/fiscal-year.service';
@@ -71,5 +73,37 @@ export class TradersService {
   async remove(id: string) {
     await this.prisma.trader.delete({ where: { id } });
     return { success: true as const, id };
+  }
+
+  async bulkImport(rows: unknown[], createdById?: string) {
+    if (!Array.isArray(rows)) {
+      throw new BadRequestException('Body must include a traders array');
+    }
+    if (rows.length === 0) {
+      throw new BadRequestException('At least one trader row is required');
+    }
+    if (rows.length > 500) {
+      throw new BadRequestException('Maximum 500 traders per import');
+    }
+    const failed: { index: number; error: string }[] = [];
+    let created = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const dto = plainToInstance(CreateTraderDto, rows[i]);
+      const errors = validateSync(dto, { whitelist: true });
+      if (errors.length) {
+        const msg = errors
+          .map((e) => (e.constraints ? Object.values(e.constraints).join(', ') : e.property))
+          .join('; ');
+        failed.push({ index: i, error: msg || 'Validation failed' });
+        continue;
+      }
+      try {
+        await this.create(dto, createdById);
+        created++;
+      } catch (e) {
+        failed.push({ index: i, error: (e as Error).message || 'Create failed' });
+      }
+    }
+    return { created, failed, total: rows.length };
   }
 }
