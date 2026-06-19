@@ -12,17 +12,20 @@ export declare class BusinessesController {
         phone: string | null;
         type: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
+        tin: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string;
         status: string;
         mesobRef: string | null;
         startDate: Date | null;
         traderId: string;
-        category: string;
+        woreda: string | null;
+        kebele: string | null;
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-        tin: string | null;
     }>;
     findAll(search?: string, status?: string, traderId?: string, skip?: string, take?: string): Promise<{
         items: ({
@@ -43,7 +46,7 @@ export declare class BusinessesController {
             }[];
             trader: {
                 id: string;
-                email: string;
+                email: string | null;
                 fullName: string;
             };
         } & {
@@ -55,17 +58,20 @@ export declare class BusinessesController {
             phone: string | null;
             type: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
+            tin: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string;
             status: string;
             mesobRef: string | null;
             startDate: Date | null;
             traderId: string;
-            category: string;
+            woreda: string | null;
+            kebele: string | null;
             shopNo: string | null;
             tradeName: string | null;
             subCategory: string | null;
-            tin: string | null;
         })[];
         total: number;
     }>;
@@ -127,21 +133,26 @@ export declare class BusinessesController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string;
-            phone: string;
+            email: string | null;
+            phone: string | null;
             userId: string | null;
             fullName: string;
             gender: string | null;
-            dob: Date | null;
             nationalId: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
-            photoUrl: string | null;
+            tin: string | null;
+            typeOfJob: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string | null;
+            licenseRegistrationType: string | null;
+            licenseRegistrationDate: Date | null;
             status: string;
             createdById: string | null;
             approvedById: string | null;
             mesobRef: string | null;
+            licenseExpiryDate: Date | null;
         };
         payments: ({
             taxType: {
@@ -163,9 +174,9 @@ export declare class BusinessesController {
             status: string;
             paidAt: Date | null;
             businessId: string;
-            year: number;
             taxTypeId: string | null;
             currency: string;
+            year: number;
             period: string | null;
             reference: string | null;
             notes: string | null;
@@ -179,17 +190,20 @@ export declare class BusinessesController {
         phone: string | null;
         type: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
+        tin: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string;
         status: string;
         mesobRef: string | null;
         startDate: Date | null;
         traderId: string;
-        category: string;
+        woreda: string | null;
+        kebele: string | null;
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-        tin: string | null;
     }) | null>;
     update(id: string, dto: UpdateBusinessDto): Promise<{
         id: string;
@@ -200,17 +214,20 @@ export declare class BusinessesController {
         phone: string | null;
         type: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
+        tin: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string;
         status: string;
         mesobRef: string | null;
         startDate: Date | null;
         traderId: string;
-        category: string;
+        woreda: string | null;
+        kebele: string | null;
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-        tin: string | null;
     }>;
     remove(id: string): Promise<{
         success: true;

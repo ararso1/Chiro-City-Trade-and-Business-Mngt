@@ -93,6 +93,13 @@ export declare class NotificationsController {
             inApp?: boolean;
         };
         deadline?: string;
+        targetFilters?: {
+            category?: string[];
+            typeOfJob?: string[];
+            address?: string[];
+            traderStatus?: string[];
+            licenseState?: string[];
+        };
     }, userId?: string): Promise<{
         id: string;
         createdAt: Date;
@@ -136,6 +143,13 @@ export declare class NotificationsController {
         };
         expiryDate?: string;
         amount?: number;
+        targetFilters?: {
+            category?: string[];
+            typeOfJob?: string[];
+            address?: string[];
+            traderStatus?: string[];
+            licenseState?: string[];
+        };
     }, userId?: string): Promise<{
         created: number;
         tradersCount: number;

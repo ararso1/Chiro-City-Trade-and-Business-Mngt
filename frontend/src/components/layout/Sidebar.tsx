@@ -28,10 +28,10 @@ interface SidebarProps {
 const menuItems = [
   { title: 'Dashboard', icon: BarChart3, href: '/dashboard', permission: 'dashboard.view' },
   { title: 'Traders', icon: Users, href: '/traders', permission: 'traders.read' },
-  { title: 'Businesses', icon: Briefcase, href: '/businesses', permission: 'businesses.read' },
+  // { title: 'Businesses', icon: Briefcase, href: '/businesses', permission: 'businesses.read' },
   { title: 'Licenses', icon: FileText, href: '/licenses', permission: 'licenses.read' },
-  { title: 'Finance & Tax', icon: DollarSign, href: '/finance', permission: 'payments.read' },
-  { title: 'Inspections', icon: ClipboardCheck, href: '/inspections', permission: 'inspections.read' },
+  // { title: 'Finance & Tax', icon: DollarSign, href: '/finance', permission: 'payments.read' },
+  // { title: 'Inspections', icon: ClipboardCheck, href: '/inspections', permission: 'inspections.read' },
   { title: 'Complaints', icon: MessageSquare, href: '/complaints', permission: 'complaints.read' },
   { title: 'Digital Archive', icon: Archive, href: '/archive', permission: 'documents.read' },
   { title: 'Reports', icon: BarChart3, href: '/reports', permission: 'reports.read' },

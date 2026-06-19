@@ -7,21 +7,26 @@ export declare class TradersController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        email: string;
-        phone: string;
+        email: string | null;
+        phone: string | null;
         userId: string | null;
         fullName: string;
         gender: string | null;
-        dob: Date | null;
         nationalId: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
-        photoUrl: string | null;
+        tin: string | null;
+        typeOfJob: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string | null;
+        licenseRegistrationType: string | null;
+        licenseRegistrationDate: Date | null;
         status: string;
         createdById: string | null;
         approvedById: string | null;
         mesobRef: string | null;
+        licenseExpiryDate: Date | null;
     }>;
     bulkImport(body: BulkImportTradersDto, userId?: string): Promise<{
         created: number;
@@ -31,7 +36,7 @@ export declare class TradersController {
         }[];
         total: number;
     }>;
-    findAll(search?: string, status?: string, skip?: string, take?: string): Promise<{
+    findAll(search?: string, status?: string, typeOfJob?: string, category?: string, address?: string, licenseState?: string, skip?: string, take?: string): Promise<{
         items: ({
             businesses: {
                 id: string;
@@ -42,23 +47,33 @@ export declare class TradersController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string;
-            phone: string;
+            email: string | null;
+            phone: string | null;
             userId: string | null;
             fullName: string;
             gender: string | null;
-            dob: Date | null;
             nationalId: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
-            photoUrl: string | null;
+            tin: string | null;
+            typeOfJob: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string | null;
+            licenseRegistrationType: string | null;
+            licenseRegistrationDate: Date | null;
             status: string;
             createdById: string | null;
             approvedById: string | null;
             mesobRef: string | null;
+            licenseExpiryDate: Date | null;
         })[];
         total: number;
+    }>;
+    filterOptions(): Promise<{
+        typeOfJobs: string[];
+        categories: string[];
+        addresses: string[];
     }>;
     findOne(id: string): Promise<({
         businesses: ({
@@ -104,6 +119,16 @@ export declare class TradersController {
                 businessId: string;
                 inspectorId: string;
             })[];
+            documents: {
+                id: string;
+                name: string;
+                type: string;
+                businessId: string;
+                filePath: string;
+                mimeType: string | null;
+                sizeBytes: number | null;
+                uploadedAt: Date;
+            }[];
             payments: ({
                 taxType: {
                     id: string;
@@ -124,9 +149,9 @@ export declare class TradersController {
                 status: string;
                 paidAt: Date | null;
                 businessId: string;
-                year: number;
                 taxTypeId: string | null;
                 currency: string;
+                year: number;
                 period: string | null;
                 reference: string | null;
                 notes: string | null;
@@ -140,17 +165,20 @@ export declare class TradersController {
             phone: string | null;
             type: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
+            tin: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string;
             status: string;
             mesobRef: string | null;
             startDate: Date | null;
             traderId: string;
-            category: string;
+            woreda: string | null;
+            kebele: string | null;
             shopNo: string | null;
             tradeName: string | null;
             subCategory: string | null;
-            tin: string | null;
         })[];
         documents: {
             id: string;
@@ -176,41 +204,51 @@ export declare class TradersController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        email: string;
-        phone: string;
+        email: string | null;
+        phone: string | null;
         userId: string | null;
         fullName: string;
         gender: string | null;
-        dob: Date | null;
         nationalId: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
-        photoUrl: string | null;
+        tin: string | null;
+        typeOfJob: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string | null;
+        licenseRegistrationType: string | null;
+        licenseRegistrationDate: Date | null;
         status: string;
         createdById: string | null;
         approvedById: string | null;
         mesobRef: string | null;
+        licenseExpiryDate: Date | null;
     }) | null>;
     update(id: string, dto: UpdateTraderDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        email: string;
-        phone: string;
+        email: string | null;
+        phone: string | null;
         userId: string | null;
         fullName: string;
         gender: string | null;
-        dob: Date | null;
         nationalId: string | null;
         address: string | null;
-        woreda: string | null;
-        kebele: string | null;
-        photoUrl: string | null;
+        tin: string | null;
+        typeOfJob: string | null;
+        plateNumber: string | null;
+        associationType: string | null;
+        businessArea: string | null;
+        category: string | null;
+        licenseRegistrationType: string | null;
+        licenseRegistrationDate: Date | null;
         status: string;
         createdById: string | null;
         approvedById: string | null;
         mesobRef: string | null;
+        licenseExpiryDate: Date | null;
     }>;
     remove(id: string): Promise<{
         success: true;

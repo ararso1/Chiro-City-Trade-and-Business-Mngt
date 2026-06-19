@@ -9,11 +9,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BulkImportTradersDto = exports.UpdateTraderDto = exports.CreateTraderDto = exports.TRADER_STATUSES = void 0;
+exports.BulkImportTradersDto = exports.UpdateTraderDto = exports.CreateTraderDto = exports.LICENSE_REGISTRATION_TYPES = exports.TRADER_STATUSES = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 exports.TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'];
+exports.LICENSE_REGISTRATION_TYPES = ['new_registration', 'renewal'];
 class CreateTraderDto {
 }
 exports.CreateTraderDto = CreateTraderDto;
@@ -35,20 +36,6 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], CreateTraderDto.prototype, "dob", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateTraderDto.prototype, "phone", void 0);
-__decorate([
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], CreateTraderDto.prototype, "email", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)(),
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTraderDto.prototype, "nationalId", void 0);
@@ -57,25 +44,59 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateTraderDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateTraderDto.prototype, "address", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)(),
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateTraderDto.prototype, "woreda", void 0);
+], CreateTraderDto.prototype, "tin", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateTraderDto.prototype, "kebele", void 0);
+], CreateTraderDto.prototype, "typeOfJob", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateTraderDto.prototype, "photoUrl", void 0);
+], CreateTraderDto.prototype, "plateNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTraderDto.prototype, "associationType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTraderDto.prototype, "businessArea", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTraderDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: exports.LICENSE_REGISTRATION_TYPES }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(exports.LICENSE_REGISTRATION_TYPES),
+    __metadata("design:type", String)
+], CreateTraderDto.prototype, "licenseRegistrationType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Registration or renewal date used to calculate annual expiry.' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateTraderDto.prototype, "licenseRegistrationDate", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
@@ -118,18 +139,6 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], UpdateTraderDto.prototype, "dob", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)(),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], UpdateTraderDto.prototype, "email", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)(),
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateTraderDto.prototype, "phone", void 0);
@@ -150,19 +159,49 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UpdateTraderDto.prototype, "woreda", void 0);
+], UpdateTraderDto.prototype, "tin", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UpdateTraderDto.prototype, "kebele", void 0);
+], UpdateTraderDto.prototype, "typeOfJob", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UpdateTraderDto.prototype, "photoUrl", void 0);
+], UpdateTraderDto.prototype, "plateNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateTraderDto.prototype, "associationType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateTraderDto.prototype, "businessArea", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateTraderDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: exports.LICENSE_REGISTRATION_TYPES }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(exports.LICENSE_REGISTRATION_TYPES),
+    __metadata("design:type", String)
+], UpdateTraderDto.prototype, "licenseRegistrationType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Registration or renewal date used to calculate annual expiry.' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], UpdateTraderDto.prototype, "licenseRegistrationDate", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),

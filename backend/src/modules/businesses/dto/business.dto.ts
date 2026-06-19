@@ -31,6 +31,21 @@ export class CreateBusinessDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  businessArea?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  plateNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  associationType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   address?: string;
 
   @ApiPropertyOptional()
@@ -104,6 +119,21 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
   subCategory?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  businessArea?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  plateNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  associationType?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

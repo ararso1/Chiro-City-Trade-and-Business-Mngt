@@ -13,8 +13,8 @@ export class BusinessesService {
   async create(dto: CreateBusinessDto) {
     const data: any = { ...dto };
     if (dto.startDate) data.startDate = new Date(dto.startDate);
-    // Registration creates the business in "pending" state automatically.
-    data.status = 'pending';
+    // Registration creates the business in "pending" state unless a workflow explicitly sets it.
+    data.status = dto.status ?? 'pending';
     return this.prisma.business.create({ data });
   }
 

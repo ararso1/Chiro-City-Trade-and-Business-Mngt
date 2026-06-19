@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -38,6 +39,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Users, Plus, Search, Loader2, MoreHorizontal, Eye, Pencil, Trash2, Sparkles, Upload, Download } from 'lucide-react';
@@ -46,6 +56,11 @@ import { toast } from '@/hooks/use-toast';
 import { parseTradersCsv, TRADER_CSV_TEMPLATE, type ParsedTraderRow } from '@/lib/traderImportCsv';
 
 const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'];
+const LICENSE_FILTERS = [
+  { value: 'renewed_this_year', label: 'Renewed this year' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'paused', label: 'Paused' },
+];
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'default';
@@ -54,21 +69,108 @@ const statusVariant = (s: string) => {
   return 'outline';
 };
 
-const BULK_MAX = 500;
+const BULK_BATCH_SIZE = 100;
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+type TraderFilterOptions = {
+  typeOfJobs: string[];
+  categories: string[];
+  addresses: string[];
+};
+
+function MultiSelectFilter({
+  label,
+  values,
+  selected,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" className="justify-between border-[hsl(var(--app-flow-border))]">
+          <span className="truncate">
+            {selected.length ? `${label}: ${selected.length}` : label}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-64 max-h-72 overflow-y-auto">
+        {selected.length > 0 && (
+          <>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onChange([]); }}>
+              Clear {label.toLowerCase()}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {values.length ? (
+          values.map((value) => (
+            <DropdownMenuCheckboxItem
+              key={value}
+              checked={selected.includes(value)}
+              onCheckedChange={() => toggle(value)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              <span className="truncate">{value}</span>
+            </DropdownMenuCheckboxItem>
+          ))
+        ) : (
+          <DropdownMenuItem disabled>No options</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function traderRowToPayload(row: ParsedTraderRow) {
   const body: Record<string, string> = {
     fullName: row.fullName.trim(),
-    phone: row.phone.trim(),
-    email: row.email.trim(),
+    tin: row.tin.replace(/\s+/g, ''),
   };
+  if (row.phone?.trim()) body.phone = row.phone.replace(/\s+/g, '');
   if (row.nationalId?.trim()) body.nationalId = row.nationalId.trim();
   if (row.gender?.trim()) body.gender = row.gender.trim();
-  if (row.dob?.trim()) body.dob = row.dob.trim();
   if (row.address?.trim()) body.address = row.address.trim();
-  if (row.woreda?.trim()) body.woreda = row.woreda.trim();
-  if (row.kebele?.trim()) body.kebele = row.kebele.trim();
+  if (row.typeOfJob?.trim()) body.typeOfJob = row.typeOfJob.trim();
+  if (row.plateNumber?.trim()) body.plateNumber = row.plateNumber.trim();
+  if (row.associationType?.trim()) body.associationType = row.associationType.trim();
+  if (row.businessArea?.trim()) body.businessArea = row.businessArea.trim();
+  if (row.category?.trim()) body.category = row.category.trim();
   return body;
+}
+
+function summarizeBulkImportResult(result: { created: number; failed: { error: string }[]; total: number }, batches: number) {
+  const duplicateFailures = result.failed.filter((f) =>
+    /TIN already exists|Phone number already exists/i.test(f.error),
+  ).length;
+  const duplicateOnly = result.failed.length > 0 && duplicateFailures === result.failed.length;
+  if (duplicateOnly) {
+    return {
+      title: result.created > 0 ? 'Bulk import finished with duplicates' : 'Bulk import skipped duplicates',
+      description:
+        result.created > 0
+          ? `Created ${result.created} new trader(s). Skipped ${duplicateFailures} duplicate row(s) across ${batches} batch(es).`
+          : `No new traders were created because all ${duplicateFailures} row(s) already exist by TIN or phone.`,
+      variant: 'default' as const,
+    };
+  }
+
+  const failMsg =
+    result.failed.length > 0
+      ? `${result.failed.length} row(s) failed (see details below).`
+      : 'All rows were accepted.';
+  return {
+    title: 'Bulk import finished',
+    description: `Created ${result.created} of ${result.total} across ${batches} batch(es). ${failMsg}`,
+    variant: result.failed.length > 0 && result.created === 0 ? ('destructive' as const) : ('default' as const),
+  };
 }
 
 export default function TradersPage() {
@@ -79,6 +181,13 @@ export default function TradersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [filterOptions, setFilterOptions] = useState<TraderFilterOptions>({ typeOfJobs: [], categories: [], addresses: [] });
+  const [typeOfJobFilter, setTypeOfJobFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [addressFilter, setAddressFilter] = useState<string[]>([]);
+  const [licenseFilter, setLicenseFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -97,6 +206,12 @@ export default function TradersPage() {
   const canRead = hasPermission('traders.read');
   const canUpdate = hasPermission('traders.update');
   const canDelete = hasPermission('traders.delete');
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = Math.min(total, page * pageSize);
+  const visiblePages = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
+    (p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+  );
 
   const load = async () => {
     setLoading(true);
@@ -104,7 +219,12 @@ export default function TradersPage() {
       const res = await api.traders.list({
         search: search || undefined,
         status: statusFilter || undefined,
-        take: 50,
+        typeOfJob: typeOfJobFilter.length ? typeOfJobFilter.join(',') : undefined,
+        category: categoryFilter.length ? categoryFilter.join(',') : undefined,
+        address: addressFilter.length ? addressFilter.join(',') : undefined,
+        licenseState: licenseFilter || undefined,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -117,7 +237,21 @@ export default function TradersPage() {
 
   useEffect(() => {
     load();
-  }, [search, statusFilter]);
+  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, licenseFilter, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, licenseFilter, pageSize]);
+
+  useEffect(() => {
+    api.traders.filterOptions()
+      .then(setFilterOptions)
+      .catch((e) => toast({ title: 'Could not load filters', description: (e as Error).message, variant: 'destructive' }));
+  }, []);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const resetBulkImport = () => {
     setBulkRows([]);
@@ -148,29 +282,34 @@ export default function TradersPage() {
       toast({ title: 'Nothing to import', description: 'Add a CSV file or paste rows first.', variant: 'destructive' });
       return;
     }
-    if (bulkRows.length > BULK_MAX) {
-      toast({
-        title: 'Too many rows',
-        description: `Maximum ${BULK_MAX} traders per import. You have ${bulkRows.length}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
     setBulkImporting(true);
     setBulkServerResult(null);
     try {
       const traders = bulkRows.map(traderRowToPayload);
-      const res = await api.traders.bulkImport(traders);
-      setBulkServerResult(res);
-      const failMsg =
-        res.failed.length > 0
-          ? `${res.failed.length} row(s) failed (see details below).`
-          : 'All rows were accepted.';
-      toast({
-        title: 'Bulk import finished',
-        description: `Created ${res.created} of ${res.total}. ${failMsg}`,
-        variant: res.failed.length > 0 && res.created === 0 ? 'destructive' : 'default',
-      });
+      const batches: object[][] = [];
+      for (let i = 0; i < traders.length; i += BULK_BATCH_SIZE) {
+        batches.push(traders.slice(i, i + BULK_BATCH_SIZE));
+      }
+
+      const combined = {
+        created: 0,
+        failed: [] as { index: number; error: string }[],
+        total: traders.length,
+      };
+      for (let i = 0; i < batches.length; i++) {
+        const startIndex = i * BULK_BATCH_SIZE;
+        const res = await api.traders.bulkImport(batches[i]);
+        combined.created += res.created;
+        combined.failed.push(
+          ...res.failed.map((failure) => ({
+            index: startIndex + failure.index,
+            error: failure.error,
+          })),
+        );
+      }
+
+      setBulkServerResult(combined);
+      toast(summarizeBulkImportResult(combined, batches.length));
       await load();
     } catch (e) {
       toast({ title: 'Import failed', description: (e as Error).message, variant: 'destructive' });
@@ -242,18 +381,36 @@ export default function TradersPage() {
               </CardTitle>
               <CardDescription>Total: {total}</CardDescription>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Search name, email, phone..."
-                  className="pl-9 w-full sm:w-64 border-[hsl(var(--app-flow-border))]"
+                  placeholder="Search name, TIN, phone..."
+                  className="pl-9 w-full border-[hsl(var(--app-flow-border))] lg:col-span-2"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
+              <MultiSelectFilter
+                label="Job type"
+                values={filterOptions.typeOfJobs}
+                selected={typeOfJobFilter}
+                onChange={setTypeOfJobFilter}
+              />
+              <MultiSelectFilter
+                label="Category"
+                values={filterOptions.categories}
+                selected={categoryFilter}
+                onChange={setCategoryFilter}
+              />
+              <MultiSelectFilter
+                label="Address"
+                values={filterOptions.addresses}
+                selected={addressFilter}
+                onChange={setAddressFilter}
+              />
               <Select value={statusFilter || '__all__'} onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="w-full sm:w-40 border-[hsl(var(--app-flow-border))]">
+                <SelectTrigger className="w-full border-[hsl(var(--app-flow-border))]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -265,6 +422,36 @@ export default function TradersPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={licenseFilter || '__all__'} onValueChange={(v) => setLicenseFilter(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-full border-[hsl(var(--app-flow-border))]">
+                  <SelectValue placeholder="License filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All license states</SelectItem>
+                  {LICENSE_FILTERS.map((filter) => (
+                    <SelectItem key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(search || statusFilter || typeOfJobFilter.length > 0 || categoryFilter.length > 0 || addressFilter.length > 0 || licenseFilter) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[hsl(var(--app-flow-border))]"
+                  onClick={() => {
+                    setSearch('');
+                    setStatusFilter('');
+                    setTypeOfJobFilter([]);
+                    setCategoryFilter([]);
+                    setAddressFilter([]);
+                    setLicenseFilter('');
+                  }}
+                >
+                  Reset filters
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -279,8 +466,11 @@ export default function TradersPage() {
                 <TableHeader>
                   <TableRow className="border-[hsl(var(--app-flow-border))] hover:bg-transparent">
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>TIN</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead className="hidden lg:table-cell">Type of job</TableHead>
+                    <TableHead className="hidden lg:table-cell">Category</TableHead>
+                    <TableHead className="hidden xl:table-cell">Address</TableHead>
                     <TableHead className="hidden md:table-cell">National ID</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Businesses</TableHead>
@@ -293,8 +483,11 @@ export default function TradersPage() {
                     return (
                       <TableRow key={t.id} className="border-[hsl(var(--app-flow-border))]">
                         <TableCell className="font-medium max-w-[140px] truncate">{t.fullName}</TableCell>
-                        <TableCell className="max-w-[160px] truncate text-muted-foreground">{t.email}</TableCell>
+                        <TableCell className="max-w-[160px] truncate text-muted-foreground">{t.tin ?? '—'}</TableCell>
                         <TableCell className="whitespace-nowrap">{t.phone}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">{t.typeOfJob ?? '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">{t.category ?? '—'}</TableCell>
+                        <TableCell className="hidden xl:table-cell max-w-[180px] truncate text-muted-foreground">{t.address ?? '—'}</TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">{t.nationalId ?? '—'}</TableCell>
                         <TableCell>
                           <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
@@ -349,6 +542,76 @@ export default function TradersPage() {
           {!loading && items.length === 0 && (
             <p className="text-center text-muted-foreground py-10 px-4">No traders match your filters.</p>
           )}
+          <div className="flex flex-col gap-4 border-t border-[hsl(var(--app-flow-border))] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center">
+              <span>
+                Showing <span className="font-medium text-foreground">{pageStart}</span>-<span className="font-medium text-foreground">{pageEnd}</span> of{' '}
+                <span className="font-medium text-foreground">{total}</span> traders
+              </span>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                <SelectTrigger className="h-9 w-32 border-[hsl(var(--app-flow-border))]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size} / page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={page === 1}
+                    className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage((p) => Math.max(1, p - 1));
+                    }}
+                  />
+                </PaginationItem>
+                {visiblePages.map((p, idx) => {
+                  const previous = visiblePages[idx - 1];
+                  return (
+                    <React.Fragment key={p}>
+                      {previous && p - previous > 1 && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(p);
+                          }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </React.Fragment>
+                  );
+                })}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={page === totalPages}
+                    className={page === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage((p) => Math.min(totalPages, p + 1));
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </CardContent>
       </Card>
 
@@ -363,8 +626,8 @@ export default function TradersPage() {
           <DialogHeader className="p-6 pb-2 space-y-2 border-b border-[hsl(var(--app-flow-border))] bg-muted/15">
             <DialogTitle>Bulk import traders</DialogTitle>
             <DialogDescription>
-              Upload a UTF-8 CSV with columns: fullName, phone, email (required); nationalId, gender, dob, address, woreda, kebele (optional). Up to 500
-              rows per request.
+              Upload a UTF-8 CSV with columns: fullName, tin (required); gender, nationalId, address, typeOfJob, phone, plateNumber, associationType,
+              businessArea, category (optional). Phone and TIN are unique. Large files are imported automatically in {BULK_BATCH_SIZE}-row batches.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -402,7 +665,7 @@ export default function TradersPage() {
               <Label htmlFor="bulk-csv-paste">Or paste CSV</Label>
               <Textarea
                 id="bulk-csv-paste"
-                placeholder={'fullName,phone,email\nJane Doe,+251911000000,jane@example.com'}
+                placeholder={'fullName,tin,phone\nJane Doe,TIN-00001,+251911000000'}
                 className="min-h-[100px] font-mono text-sm border-[hsl(var(--app-flow-border))]"
                 value={bulkPaste}
                 onChange={(e) => setBulkPaste(e.target.value)}
@@ -435,8 +698,8 @@ export default function TradersPage() {
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="whitespace-nowrap">Name</TableHead>
                         <TableHead className="whitespace-nowrap">Phone</TableHead>
-                        <TableHead className="whitespace-nowrap">Email</TableHead>
-                        <TableHead className="whitespace-nowrap hidden sm:table-cell">National ID</TableHead>
+                        <TableHead className="whitespace-nowrap">TIN</TableHead>
+                        <TableHead className="whitespace-nowrap hidden sm:table-cell">Category</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -444,8 +707,8 @@ export default function TradersPage() {
                         <TableRow key={idx}>
                           <TableCell className="max-w-[140px] truncate">{r.fullName}</TableCell>
                           <TableCell className="whitespace-nowrap">{r.phone}</TableCell>
-                          <TableCell className="max-w-[160px] truncate text-muted-foreground">{r.email}</TableCell>
-                          <TableCell className="hidden sm:table-cell text-muted-foreground">{r.nationalId ?? '—'}</TableCell>
+                          <TableCell className="max-w-[160px] truncate text-muted-foreground">{r.tin}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">{r.category ?? '—'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

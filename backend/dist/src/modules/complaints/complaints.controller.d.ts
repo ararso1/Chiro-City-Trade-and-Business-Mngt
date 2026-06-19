@@ -19,9 +19,9 @@ export declare class ComplaintsController {
         createdAt: Date;
         description: string;
         updatedAt: Date;
+        category: string | null;
         status: string;
         traderId: string | null;
-        category: string | null;
         resolvedAt: Date | null;
         resolution: string | null;
         submittedBy: string;
@@ -34,7 +34,7 @@ export declare class ComplaintsController {
     findAll(status?: string, traderId?: string, skip?: string, take?: string): Promise<{
         items: ({
             trader: {
-                email: string;
+                email: string | null;
                 fullName: string;
             } | null;
             assignedTo: {
@@ -45,9 +45,9 @@ export declare class ComplaintsController {
             createdAt: Date;
             description: string;
             updatedAt: Date;
+            category: string | null;
             status: string;
             traderId: string | null;
-            category: string | null;
             resolvedAt: Date | null;
             resolution: string | null;
             submittedBy: string;
@@ -64,21 +64,26 @@ export declare class ComplaintsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string;
-            phone: string;
+            email: string | null;
+            phone: string | null;
             userId: string | null;
             fullName: string;
             gender: string | null;
-            dob: Date | null;
             nationalId: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
-            photoUrl: string | null;
+            tin: string | null;
+            typeOfJob: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string | null;
+            licenseRegistrationType: string | null;
+            licenseRegistrationDate: Date | null;
             status: string;
             createdById: string | null;
             approvedById: string | null;
             mesobRef: string | null;
+            licenseExpiryDate: Date | null;
         } | null;
         assignedTo: {
             id: string;
@@ -97,9 +102,9 @@ export declare class ComplaintsController {
         createdAt: Date;
         description: string;
         updatedAt: Date;
+        category: string | null;
         status: string;
         traderId: string | null;
-        category: string | null;
         resolvedAt: Date | null;
         resolution: string | null;
         submittedBy: string;
@@ -133,9 +138,9 @@ export declare class ComplaintsController {
         createdAt: Date;
         description: string;
         updatedAt: Date;
+        category: string | null;
         status: string;
         traderId: string | null;
-        category: string | null;
         resolvedAt: Date | null;
         resolution: string | null;
         submittedBy: string;

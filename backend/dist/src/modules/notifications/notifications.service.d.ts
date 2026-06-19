@@ -9,6 +9,7 @@ export declare class NotificationsService {
     private normalizeMsisdn;
     private buildSmsText;
     private sendSms;
+    private buildTraderTargetWhere;
     create(data: {
         userId?: string;
         traderId?: string;
@@ -111,6 +112,13 @@ export declare class NotificationsService {
             inApp?: boolean;
         };
         deadline?: string;
+        targetFilters?: {
+            category?: string[];
+            typeOfJob?: string[];
+            address?: string[];
+            traderStatus?: string[];
+            licenseState?: string[];
+        };
     }): Promise<{
         id: string;
         createdAt: Date;
@@ -150,6 +158,13 @@ export declare class NotificationsService {
         };
         expiryDate?: string;
         amount?: number;
+        targetFilters?: {
+            category?: string[];
+            typeOfJob?: string[];
+            address?: string[];
+            traderStatus?: string[];
+            licenseState?: string[];
+        };
         createdByUserId?: string;
     }): Promise<{
         created: number;

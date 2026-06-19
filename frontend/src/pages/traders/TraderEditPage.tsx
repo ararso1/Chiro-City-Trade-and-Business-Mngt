@@ -27,11 +27,6 @@ const GENDER_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
-function dobToInput(d: string | null | undefined) {
-  if (!d) return '';
-  return String(d).slice(0, 10);
-}
-
 export default function TraderEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,14 +36,16 @@ export default function TraderEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [tin, setTin] = useState('');
   const [phone, setPhone] = useState('');
   const [nationalId, setNationalId] = useState('');
   const [gender, setGender] = useState('');
-  const [dob, setDob] = useState('');
   const [address, setAddress] = useState('');
-  const [woreda, setWoreda] = useState('');
-  const [kebele, setKebele] = useState('');
+  const [typeOfJob, setTypeOfJob] = useState('');
+  const [plateNumber, setPlateNumber] = useState('');
+  const [associationType, setAssociationType] = useState('');
+  const [businessArea, setBusinessArea] = useState('');
+  const [category, setCategory] = useState('');
   const [status, setStatus] = useState<string>('draft');
 
   useEffect(() => {
@@ -64,14 +61,16 @@ export default function TraderEditPage() {
       .get(id)
       .then((t) => {
         setFullName(t.fullName ?? '');
-        setEmail(t.email ?? '');
+        setTin(t.tin ?? '');
         setPhone(t.phone ?? '');
         setNationalId(t.nationalId ?? '');
         setGender(t.gender ?? '');
-        setDob(dobToInput(t.dob));
         setAddress(t.address ?? '');
-        setWoreda(t.woreda ?? '');
-        setKebele(t.kebele ?? '');
+        setTypeOfJob(t.typeOfJob ?? '');
+        setPlateNumber(t.plateNumber ?? '');
+        setAssociationType(t.associationType ?? '');
+        setBusinessArea(t.businessArea ?? '');
+        setCategory(t.category ?? '');
         setStatus(t.status ?? 'draft');
       })
       .catch((e) => toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' }))
@@ -80,22 +79,24 @@ export default function TraderEditPage() {
 
   const save = async () => {
     if (!id || !canUpdate) return;
-    if (!fullName.trim() || !email.trim() || !phone.trim()) {
-      toast({ title: 'Missing fields', description: 'Full name, email, and phone are required.', variant: 'destructive' });
+    if (!fullName.trim() || !tin.trim()) {
+      toast({ title: 'Missing fields', description: 'Full name and TIN are required.', variant: 'destructive' });
       return;
     }
     setSaving(true);
     try {
       await api.traders.update(id, {
         fullName: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
+        tin: tin.trim(),
+        phone: phone.trim() || undefined,
         nationalId: nationalId.trim() || undefined,
         gender: gender || undefined,
-        dob: dob || undefined,
         address: address.trim() || undefined,
-        woreda: woreda.trim() || undefined,
-        kebele: kebele.trim() || undefined,
+        typeOfJob: typeOfJob.trim() || undefined,
+        plateNumber: plateNumber.trim() || undefined,
+        associationType: associationType.trim() || undefined,
+        businessArea: businessArea.trim() || undefined,
+        category: category.trim() || undefined,
         status,
       });
       toast({ title: 'Saved', description: 'Trader profile was updated.' });
@@ -153,11 +154,11 @@ export default function TraderEditPage() {
               <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label>TIN *</Label>
+              <Input value={tin} onChange={(e) => setTin(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Phone *</Label>
+              <Label>Phone (unique)</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -180,8 +181,8 @@ export default function TraderEditPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Date of birth</Label>
-              <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+              <Label>Type of job</Label>
+              <Input value={typeOfJob} onChange={(e) => setTypeOfJob(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
@@ -199,12 +200,20 @@ export default function TraderEditPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Woreda</Label>
-              <Input value={woreda} onChange={(e) => setWoreda(e.target.value)} />
+              <Label>Plate number</Label>
+              <Input value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Kebele</Label>
-              <Input value={kebele} onChange={(e) => setKebele(e.target.value)} />
+              <Label>Association type</Label>
+              <Input value={associationType} onChange={(e) => setAssociationType(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Area of business</Label>
+              <Input value={businessArea} onChange={(e) => setBusinessArea(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Address</Label>

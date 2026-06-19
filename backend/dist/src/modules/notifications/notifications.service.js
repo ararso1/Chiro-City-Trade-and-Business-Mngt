@@ -72,6 +72,53 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
             return { ok: false, error: providerMessage || error?.message || 'Unknown SMS provider error' };
         }
     }
+    buildTraderTargetWhere(filters) {
+        const where = { status: { not: 'closed' } };
+        if (!filters)
+            return where;
+        const values = (value) => (Array.isArray(value) ? value : String(value ?? '').split(','))
+            .map((v) => v.trim())
+            .filter(Boolean);
+        const traderStatuses = values(filters.traderStatus);
+        const categories = values(filters.category);
+        const typeOfJobs = values(filters.typeOfJob);
+        const addresses = values(filters.address);
+        const licenseStates = values(filters.licenseState);
+        if (traderStatuses.length) {
+            where.status = { in: traderStatuses };
+        }
+        if (categories.length) {
+            where.category = { in: categories };
+        }
+        if (typeOfJobs.length) {
+            where.typeOfJob = { in: typeOfJobs };
+        }
+        if (addresses.length) {
+            where.address = { in: addresses };
+        }
+        if (licenseStates.includes('paused')) {
+            where.status = 'suspended';
+        }
+        if (licenseStates.includes('expired')) {
+            where.licenseExpiryDate = { lt: new Date() };
+        }
+        if (licenseStates.includes('renewed_this_year')) {
+            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+            const startOfNextYear = new Date(new Date().getFullYear() + 1, 0, 1);
+            where.licenseRegistrationType = 'renewal';
+            where.licenseRegistrationDate = { gte: startOfYear, lt: startOfNextYear };
+        }
+        if (licenseStates.includes('unrenewed')) {
+            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+            where.OR = [
+                { licenseRegistrationType: { not: 'renewal' } },
+                { licenseRegistrationType: null },
+                { licenseRegistrationDate: null },
+                { licenseRegistrationDate: { lt: startOfYear } },
+            ];
+        }
+        return where;
+    }
     async create(data) {
         return this.prisma.notification.create({
             data: {
@@ -170,6 +217,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                     broadcastDraft: true,
                     channels,
                     deadline: data.deadline ?? null,
+                    targetFilters: data.targetFilters ?? {},
                 },
             },
         });
@@ -192,6 +240,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                     email: channels.email ?? false,
                 },
                 expiryDate: currentMeta.deadline || undefined,
+                targetFilters: currentMeta.targetFilters ?? undefined,
                 createdByUserId: userId ?? current.userId ?? undefined,
             });
         }
@@ -209,7 +258,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
     }
     async bulkCreateForTraders(data) {
         const traders = await this.prisma.trader.findMany({
-            where: { status: { not: 'closed' } },
+            where: this.buildTraderTargetWhere(data.targetFilters),
             select: { id: true, fullName: true, email: true, phone: true },
         });
         const metadata = {
@@ -220,6 +269,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                 sms: data.channels.sms ?? false,
                 email: data.channels.email ?? false,
             },
+            targetFilters: data.targetFilters ?? {},
         };
         if (data.expiryDate)
             metadata.expiryDate = data.expiryDate;

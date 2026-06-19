@@ -31,15 +31,29 @@ export class TradersController {
   findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('typeOfJob') typeOfJob?: string,
+    @Query('category') category?: string,
+    @Query('address') address?: string,
+    @Query('licenseState') licenseState?: string,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
   ) {
     return this.traders.findAll({
       search,
       status,
+      typeOfJob,
+      category,
+      address,
+      licenseState,
       skip: skip ? parseInt(skip, 10) : undefined,
       take: take ? parseInt(take, 10) : undefined,
     });
+  }
+
+  @Get('filter-options')
+  @RequirePermissions('traders.read', '*')
+  filterOptions() {
+    return this.traders.getFilterOptions();
   }
 
   @Get(':id')

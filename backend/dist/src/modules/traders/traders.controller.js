@@ -31,13 +31,20 @@ let TradersController = class TradersController {
     bulkImport(body, userId) {
         return this.traders.bulkImport(body.traders, userId);
     }
-    findAll(search, status, skip, take) {
+    findAll(search, status, typeOfJob, category, address, licenseState, skip, take) {
         return this.traders.findAll({
             search,
             status,
+            typeOfJob,
+            category,
+            address,
+            licenseState,
             skip: skip ? parseInt(skip, 10) : undefined,
             take: take ? parseInt(take, 10) : undefined,
         });
+    }
+    filterOptions() {
+        return this.traders.getFilterOptions();
     }
     findOne(id) {
         return this.traders.findOne(id);
@@ -73,12 +80,23 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('traders.read', '*'),
     __param(0, (0, common_1.Query)('search')),
     __param(1, (0, common_1.Query)('status')),
-    __param(2, (0, common_1.Query)('skip')),
-    __param(3, (0, common_1.Query)('take')),
+    __param(2, (0, common_1.Query)('typeOfJob')),
+    __param(3, (0, common_1.Query)('category')),
+    __param(4, (0, common_1.Query)('address')),
+    __param(5, (0, common_1.Query)('licenseState')),
+    __param(6, (0, common_1.Query)('skip')),
+    __param(7, (0, common_1.Query)('take')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TradersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('filter-options'),
+    (0, permissions_decorator_1.RequirePermissions)('traders.read', '*'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TradersController.prototype, "filterOptions", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('traders.read', '*'),

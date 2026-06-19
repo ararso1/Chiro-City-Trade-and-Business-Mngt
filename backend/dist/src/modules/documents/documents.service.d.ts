@@ -25,7 +25,7 @@ export declare class DocumentsService {
     getTraderDocument(id: string): Promise<({
         trader: {
             id: string;
-            email: string;
+            email: string | null;
             fullName: string;
         };
     } & {
@@ -186,7 +186,7 @@ export declare class DocumentsService {
         items: ({
             trader: {
                 id: string;
-                email: string;
+                email: string | null;
                 fullName: string;
             };
         } & {

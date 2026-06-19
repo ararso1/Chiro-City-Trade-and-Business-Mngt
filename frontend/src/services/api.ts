@@ -54,11 +54,31 @@ export const api = {
   reports: {
     dashboard: () => request<{
       totalTraders: number;
+      activeTraders: number;
+      submittedTraders: number;
+      totalBusinesses: number;
+      activeBusinesses: number;
+      pendingBusinesses: number;
+      totalLicenses: number;
       activeLicenses: number;
       expiredLicenses: number;
+      pendingLicenses: number;
+      renewalLicenses: number;
+      licensesExpiringSoon: number;
       totalRevenue: number;
       totalViolations: number;
       openComplaints: number;
+      scheduledInspections: number;
+      completedInspections: number;
+      pendingPayments: number;
+      overduePayments: number;
+      paidPayments: number;
+      totalDocuments: number;
+      traderDocuments: number;
+      businessDocuments: number;
+      recentTraders: any[];
+      recentBusinesses: any[];
+      generatedAt: string;
       fiscalYear: { label: string; calendarType: string } | null;
     }>('/reports/dashboard'),
     exportSummary: (from?: string, to?: string) =>
@@ -68,8 +88,10 @@ export const api = {
       ),
   },
   traders: {
-    list: (params?: { search?: string; status?: string; skip?: number; take?: number }) =>
+    list: (params?: { search?: string; status?: string; typeOfJob?: string; category?: string; address?: string; licenseState?: string; skip?: number; take?: number }) =>
       request<{ items: any[]; total: number }>('/traders', { params: params as Record<string, string> }),
+    filterOptions: () =>
+      request<{ typeOfJobs: string[]; categories: string[]; addresses: string[] }>('/traders/filter-options'),
     get: (id: string) => request<any>('/traders/' + id),
     create: (body: object) => request<any>('/traders', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: object) => request<any>('/traders/' + id, { method: 'PUT', body: JSON.stringify(body) }),
@@ -192,7 +214,14 @@ export const api = {
       }
     ) => request<any>('/notifications/' + id, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<{ success: boolean; id: string }>('/notifications/' + id, { method: 'DELETE' }),
-    saveDraft: (body: { type: string; title: string; body?: string; channels?: { sms?: boolean; email?: boolean; inApp?: boolean }; deadline?: string }) =>
+    saveDraft: (body: {
+      type: string;
+      title: string;
+      body?: string;
+      channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
+      deadline?: string;
+      targetFilters?: { category?: string[]; typeOfJob?: string[]; address?: string[]; traderStatus?: string[]; licenseState?: string[] };
+    }) =>
       request<any>('/notifications/draft', { method: 'POST', body: JSON.stringify(body) }),
     publishDraft: (id: string) => request<any>('/notifications/' + id + '/publish', { method: 'PUT' }),
     bulkSend: (body: {
@@ -202,6 +231,7 @@ export const api = {
       channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
       expiryDate?: string;
       amount?: number;
+      targetFilters?: { category?: string[]; typeOfJob?: string[]; address?: string[]; traderStatus?: string[]; licenseState?: string[] };
     }) =>
       request<{ created: number; tradersCount: number; smsSent?: number; smsFailed?: number; summaryNotificationId?: string | null }>('/notifications/bulk', {
         method: 'POST',

@@ -22,7 +22,7 @@ let BusinessesService = class BusinessesService {
         const data = { ...dto };
         if (dto.startDate)
             data.startDate = new Date(dto.startDate);
-        data.status = 'pending';
+        data.status = dto.status ?? 'pending';
         return this.prisma.business.create({ data });
     }
     async findAll(params) {

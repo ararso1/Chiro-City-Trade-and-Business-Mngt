@@ -1,8 +1,9 @@
 import { Type } from 'class-transformer';
-import { IsString, IsEmail, IsOptional, IsDateString, IsArray, ArrayMinSize, ArrayMaxSize, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, ArrayMinSize, ArrayMaxSize, ValidateNested, IsIn, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'] as const;
+export const LICENSE_REGISTRATION_TYPES = ['new_registration', 'renewal'] as const;
 
 export class CreateTraderDto {
   @ApiPropertyOptional()
@@ -19,39 +20,56 @@ export class CreateTraderDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
-  dob?: string;
-
-  @IsString()
-  phone: string;
-
-  @IsEmail()
-  email: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
   nationalId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   address?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
-  woreda?: string;
+  tin: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  kebele?: string;
+  typeOfJob?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  photoUrl?: string;
+  plateNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  associationType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  businessArea?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ enum: LICENSE_REGISTRATION_TYPES })
+  @IsOptional()
+  @IsIn(LICENSE_REGISTRATION_TYPES)
+  licenseRegistrationType?: string;
+
+  @ApiPropertyOptional({ description: 'Registration or renewal date used to calculate annual expiry.' })
+  @IsOptional()
+  @IsDateString()
+  licenseRegistrationDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -87,16 +105,6 @@ export class UpdateTraderDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
-  dob?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
   phone?: string;
 
@@ -113,17 +121,42 @@ export class UpdateTraderDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  woreda?: string;
+  tin?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  kebele?: string;
+  typeOfJob?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  photoUrl?: string;
+  plateNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  associationType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  businessArea?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ enum: LICENSE_REGISTRATION_TYPES })
+  @IsOptional()
+  @IsIn(LICENSE_REGISTRATION_TYPES)
+  licenseRegistrationType?: string;
+
+  @ApiPropertyOptional({ description: 'Registration or renewal date used to calculate annual expiry.' })
+  @IsOptional()
+  @IsDateString()
+  licenseRegistrationDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -28,7 +28,7 @@ export declare class LicensesService {
         items: ({
             trader: {
                 id: string;
-                email: string;
+                email: string | null;
                 fullName: string;
             };
             business: {
@@ -62,42 +62,52 @@ export declare class LicensesService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string;
-            phone: string;
+            email: string | null;
+            phone: string | null;
             userId: string | null;
             fullName: string;
             gender: string | null;
-            dob: Date | null;
             nationalId: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
-            photoUrl: string | null;
+            tin: string | null;
+            typeOfJob: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string | null;
+            licenseRegistrationType: string | null;
+            licenseRegistrationDate: Date | null;
             status: string;
             createdById: string | null;
             approvedById: string | null;
             mesobRef: string | null;
+            licenseExpiryDate: Date | null;
         };
         business: {
             trader: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                email: string;
-                phone: string;
+                email: string | null;
+                phone: string | null;
                 userId: string | null;
                 fullName: string;
                 gender: string | null;
-                dob: Date | null;
                 nationalId: string | null;
                 address: string | null;
-                woreda: string | null;
-                kebele: string | null;
-                photoUrl: string | null;
+                tin: string | null;
+                typeOfJob: string | null;
+                plateNumber: string | null;
+                associationType: string | null;
+                businessArea: string | null;
+                category: string | null;
+                licenseRegistrationType: string | null;
+                licenseRegistrationDate: Date | null;
                 status: string;
                 createdById: string | null;
                 approvedById: string | null;
                 mesobRef: string | null;
+                licenseExpiryDate: Date | null;
             };
         } & {
             id: string;
@@ -108,17 +118,20 @@ export declare class LicensesService {
             phone: string | null;
             type: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
+            tin: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string;
             status: string;
             mesobRef: string | null;
             startDate: Date | null;
             traderId: string;
-            category: string;
+            woreda: string | null;
+            kebele: string | null;
             shopNo: string | null;
             tradeName: string | null;
             subCategory: string | null;
-            tin: string | null;
         };
         issuedBy: {
             id: string;

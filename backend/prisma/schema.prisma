@@ -64,14 +64,19 @@ model Trader {
   userId        String?   @unique // if linked to system user (trader role)
   fullName      String
   gender        String?   // male | female | other
-  dob           DateTime? // date of birth
-  phone         String
-  email         String
+  phone         String?   @unique
+  email         String?
   nationalId    String?   // national ID number
   address       String?
-  woreda        String?
-  kebele        String?
-  photoUrl      String?
+  tin           String?   @unique
+  typeOfJob     String?
+  plateNumber   String?
+  associationType String?
+  businessArea  String?
+  category      String?
+  licenseRegistrationType String? // new_registration | renewal
+  licenseRegistrationDate DateTime?
+  licenseExpiryDate DateTime?
   status        String    @default("draft") // draft | submitted | verified | active | suspended | closed
   createdById   String?
   createdBy     User?     @relation("TraderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -100,6 +105,9 @@ model Business {
   address       String?
   tradeName     String?   // trading name
   subCategory   String?
+  businessArea  String?
+  plateNumber   String?
+  associationType String?
   phone         String?
   email         String?
   tin           String?   // Tax ID

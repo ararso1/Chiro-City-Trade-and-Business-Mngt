@@ -23,12 +23,42 @@ let ReportsService = class ReportsService {
         const paidAtFilter = await this.fiscalYear.getDateFilterFor('paidAt');
         const baseWhere = dateFilter ? { createdAt: dateFilter } : {};
         const paymentWhere = { status: 'paid', ...(paidAtFilter ? { paidAt: paidAtFilter } : {}) };
-        const [totalTraders, activeLicenses, expiredLicenses, totalViolations, openComplaints,] = await Promise.all([
+        const dueSoonDate = new Date();
+        dueSoonDate.setDate(dueSoonDate.getDate() + 30);
+        const [totalTraders, activeTraders, submittedTraders, totalBusinesses, activeBusinesses, pendingBusinesses, totalLicenses, activeLicenses, expiredLicenses, pendingLicenses, renewalLicenses, licensesExpiringSoon, totalViolations, openComplaints, scheduledInspections, completedInspections, pendingPayments, overduePayments, paidPayments, traderDocuments, businessDocuments, recentTraders, recentBusinesses,] = await Promise.all([
+            this.prisma.trader.count({ where: baseWhere }),
             this.prisma.trader.count({ where: { status: 'active', ...baseWhere } }),
+            this.prisma.trader.count({ where: { status: 'submitted', ...baseWhere } }),
+            this.prisma.business.count({ where: baseWhere }),
+            this.prisma.business.count({ where: { status: 'active', ...baseWhere } }),
+            this.prisma.business.count({ where: { status: 'pending', ...baseWhere } }),
+            this.prisma.license.count({ where: dateFilter ? { createdAt: dateFilter } : {} }),
             this.prisma.license.count({ where: { status: 'issued', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
             this.prisma.license.count({ where: { status: 'expired', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { status: { in: ['application', 'review', 'approval'] }, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { status: 'renew', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { status: 'issued', expiryDate: { lte: dueSoonDate, gte: new Date() } } }),
             this.prisma.violation.count({ where: { resolvedAt: null, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
             this.prisma.complaint.count({ where: { status: 'open', ...baseWhere } }),
+            this.prisma.inspection.count({ where: { status: 'scheduled', ...baseWhere } }),
+            this.prisma.inspection.count({ where: { status: 'conducted', ...baseWhere } }),
+            this.prisma.payment.count({ where: { status: 'pending', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.payment.count({ where: { status: 'overdue', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.payment.count({ where: paymentWhere }),
+            this.prisma.traderDocument.count(),
+            this.prisma.businessDocument.count(),
+            this.prisma.trader.findMany({
+                where: baseWhere,
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, fullName: true, tin: true, status: true, createdAt: true },
+            }),
+            this.prisma.business.findMany({
+                where: baseWhere,
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, name: true, category: true, status: true, createdAt: true, trader: { select: { fullName: true } } },
+            }),
         ]);
         const revenueResult = await this.prisma.payment.aggregate({
             where: paymentWhere,
@@ -38,11 +68,31 @@ let ReportsService = class ReportsService {
         const activeRange = await this.fiscalYear.getActiveDateRange();
         return {
             totalTraders,
+            activeTraders,
+            submittedTraders,
+            totalBusinesses,
+            activeBusinesses,
+            pendingBusinesses,
+            totalLicenses,
             activeLicenses,
             expiredLicenses,
+            pendingLicenses,
+            renewalLicenses,
+            licensesExpiringSoon,
             totalRevenue,
             totalViolations,
             openComplaints,
+            scheduledInspections,
+            completedInspections,
+            pendingPayments,
+            overduePayments,
+            paidPayments,
+            totalDocuments: traderDocuments + businessDocuments,
+            traderDocuments,
+            businessDocuments,
+            recentTraders,
+            recentBusinesses,
+            generatedAt: new Date(),
             fiscalYear: activeRange ? { label: activeRange.label, calendarType: activeRange.calendarType } : null,
         };
     }

@@ -7,7 +7,7 @@ export declare class DocumentsController {
         items: ({
             trader: {
                 id: string;
-                email: string;
+                email: string | null;
                 fullName: string;
             };
         } & {

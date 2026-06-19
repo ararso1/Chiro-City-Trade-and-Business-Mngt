@@ -38,8 +38,10 @@ import {
 } from "@/components/ui/select";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +83,92 @@ const ANNOUNCEMENT_TYPES: { value: AnnouncementType; label: string }[] = [
   { value: "announcement", label: "Announcement" },
 ];
 
+const TRADER_STATUS_TARGETS = [
+  { value: "active", label: "Active traders" },
+  { value: "submitted", label: "Submitted traders" },
+  { value: "verified", label: "Verified traders" },
+  { value: "suspended", label: "Paused traders" },
+  { value: "closed", label: "Closed traders" },
+];
+
+const LICENSE_STATE_TARGETS = [
+  { value: "renewed_this_year", label: "Renewed this year" },
+  { value: "unrenewed", label: "Unrenewed this year" },
+  { value: "expired", label: "Expired" },
+  { value: "paused", label: "Paused" },
+];
+
+const emptyTargetFilters = {
+  category: [] as string[],
+  typeOfJob: [] as string[],
+  address: [] as string[],
+  traderStatus: [] as string[],
+  licenseState: [] as string[],
+};
+
+function buildTargetFilters(filters: typeof emptyTargetFilters) {
+  return {
+    category: filters.category.length ? filters.category : undefined,
+    typeOfJob: filters.typeOfJob.length ? filters.typeOfJob : undefined,
+    address: filters.address.length ? filters.address : undefined,
+    traderStatus: filters.traderStatus.length ? filters.traderStatus : undefined,
+    licenseState: filters.licenseState.length ? filters.licenseState : undefined,
+  };
+}
+
+type TraderFilterOptions = {
+  typeOfJobs: string[];
+  categories: string[];
+  addresses: string[];
+};
+
+function MultiSelectTarget({
+  label,
+  values,
+  selected,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" className="w-full justify-between">
+          <span className="truncate">{selected.length ? `${label}: ${selected.length}` : label}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-64 max-h-72 overflow-y-auto">
+        {selected.length > 0 && (
+          <>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onChange([]); }}>
+              Clear {label.toLowerCase()}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {values.length ? values.map((value) => (
+          <DropdownMenuCheckboxItem
+            key={value}
+            checked={selected.includes(value)}
+            onCheckedChange={() => toggle(value)}
+            onSelect={(e) => e.preventDefault()}
+          >
+            <span className="truncate">{value}</span>
+          </DropdownMenuCheckboxItem>
+        )) : (
+          <DropdownMenuItem disabled>No options</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function NotificationsPage() {
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -95,6 +183,7 @@ export default function NotificationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [targetOptions, setTargetOptions] = useState<TraderFilterOptions>({ typeOfJobs: [], categories: [], addresses: [] });
 
   const [form, setForm] = useState({
     type: "announcement" as AnnouncementType,
@@ -102,6 +191,7 @@ export default function NotificationsPage() {
     message: "",
     expiryDate: "",
     channels: { inApp: true, email: false, sms: false },
+    targetFilters: emptyTargetFilters,
   });
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -161,6 +251,12 @@ export default function NotificationsPage() {
     loadInbox();
   }, [filter, readFilter]);
 
+  useEffect(() => {
+    api.traders.filterOptions()
+      .then(setTargetOptions)
+      .catch(() => {});
+  }, []);
+
   const handleMarkAsRead = async (id: string) => {
     try {
       await api.notifications.markRead(id);
@@ -196,6 +292,7 @@ export default function NotificationsPage() {
           email: form.channels.email,
           sms: form.channels.sms,
         },
+        targetFilters: buildTargetFilters(form.targetFilters),
       };
       if (form.type === "license_expiry" && form.expiryDate) {
         body.expiryDate = form.expiryDate;
@@ -207,7 +304,7 @@ export default function NotificationsPage() {
           : "";
       toast({
         title: "Sent",
-        description: `General notification sent to ${res.tradersCount} traders (${res.created} delivery entries). In-app${form.channels.email ? " + email" : ""}${form.channels.sms ? " + SMS" : ""}.${smsSummary}`,
+        description: `Notification sent to ${res.tradersCount} targeted traders (${res.created} delivery entries). In-app${form.channels.email ? " + email" : ""}${form.channels.sms ? " + SMS" : ""}.${smsSummary}`,
         variant:
           form.channels.sms && (res.smsSent ?? 0) === 0 && (res.smsFailed ?? 0) > 0
             ? "destructive"
@@ -220,6 +317,7 @@ export default function NotificationsPage() {
         message: "",
         expiryDate: "",
         channels: { inApp: true, email: false, sms: false },
+        targetFilters: emptyTargetFilters,
       });
       loadInbox();
     } catch (e) {
@@ -256,10 +354,11 @@ export default function NotificationsPage() {
           email: form.channels.email,
         },
         deadline: form.expiryDate || undefined,
+        targetFilters: buildTargetFilters(form.targetFilters),
       });
       toast({
         title: "Draft saved",
-        description: `Draft saved with channels:${form.channels.inApp ? " in-app" : ""}${form.channels.sms ? " SMS" : ""}${form.channels.email ? " Email" : ""}. Publish later from card actions.`,
+        description: `Draft saved with selected target filters and channels:${form.channels.inApp ? " in-app" : ""}${form.channels.sms ? " SMS" : ""}${form.channels.email ? " Email" : ""}. Publish later from card actions.`,
       });
       setSendDialog(false);
       await loadInbox();
@@ -730,15 +829,15 @@ export default function NotificationsPage() {
 
       {/* General notification dialog */}
       <Dialog open={sendDialog} onOpenChange={setSendDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-3 border-b border-[hsl(var(--app-flow-border))]">
             <DialogTitle>Create Announcement</DialogTitle>
             <DialogDescription>
               Bulk SMS and email: annual tax payment, license expiry, random
               meetings, or general announcements
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
               <Label>Type</Label>
               <Select
@@ -792,8 +891,87 @@ export default function NotificationsPage() {
                 rows={3}
               />
             </div>
+            <div className="rounded-lg border border-[hsl(var(--app-flow-border))] bg-muted/20 p-4 space-y-3">
+              <div>
+                <Label>Target audience</Label>
+                <p className="text-xs text-muted-foreground">
+                  Leave filters empty to target all non-closed traders, or narrow by category, job type, trader status, and license state.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label>Category</Label>
+                  <MultiSelectTarget
+                    label="Select categories"
+                    values={targetOptions.categories}
+                    selected={form.targetFilters.category}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, category: next } }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Type of job</Label>
+                  <MultiSelectTarget
+                    label="Select job types"
+                    values={targetOptions.typeOfJobs}
+                    selected={form.targetFilters.typeOfJob}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, typeOfJob: next } }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Address</Label>
+                  <MultiSelectTarget
+                    label="Select addresses"
+                    values={targetOptions.addresses}
+                    selected={form.targetFilters.address}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, address: next } }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Trader status</Label>
+                  <MultiSelectTarget
+                    label="Select trader statuses"
+                    values={TRADER_STATUS_TARGETS.map((status) => status.value)}
+                    selected={form.targetFilters.traderStatus}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, traderStatus: next } }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>License state</Label>
+                  <MultiSelectTarget
+                    label="Select license states"
+                    values={LICENSE_STATE_TARGETS.map((state) => state.value)}
+                    selected={form.targetFilters.licenseState}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, licenseState: next } }))
+                    }
+                  />
+                </div>
+              </div>
+              {(form.targetFilters.category.length > 0 ||
+                form.targetFilters.typeOfJob.length > 0 ||
+                form.targetFilters.address.length > 0 ||
+                form.targetFilters.traderStatus.length > 0 ||
+                form.targetFilters.licenseState.length > 0) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setForm((prev) => ({ ...prev, targetFilters: emptyTargetFilters }))}
+                >
+                  Clear target filters
+                </Button>
+              )}
+            </div>
             <div>
-              <Label>Channels (bulk SMS &amp; email to all traders)</Label>
+              <Label>Channels (bulk SMS &amp; email to selected traders)</Label>
               <div className="space-y-3 mt-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">In-app notification</span>
@@ -839,7 +1017,8 @@ export default function NotificationsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+          </div>
+          <DialogFooter className="border-t border-[hsl(var(--app-flow-border))] bg-background p-4 sm:justify-end">
               <Button
                 variant="outline"
                 onClick={() => setSendDialog(false)}
@@ -857,8 +1036,7 @@ export default function NotificationsPage() {
                 )}
                 Send Announcement
               </Button>
-            </div>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

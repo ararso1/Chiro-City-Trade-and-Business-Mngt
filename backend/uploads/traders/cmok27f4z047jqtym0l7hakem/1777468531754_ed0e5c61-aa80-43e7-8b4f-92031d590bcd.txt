@@ -1,0 +1,6 @@
+npx prisma migrate deploy
+npx prisma generate
+cd ~/hrms-api.ciroocity.com
+rm -rf node_modules
+npm ci --include=dev
+npm run build

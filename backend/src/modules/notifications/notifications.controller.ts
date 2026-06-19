@@ -91,6 +91,7 @@ export class NotificationsController {
       body?: string;
       channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
       deadline?: string;
+      targetFilters?: { category?: string[]; typeOfJob?: string[]; address?: string[]; traderStatus?: string[]; licenseState?: string[] };
     },
     @CurrentUser('sub') userId?: string,
   ) {
@@ -123,6 +124,7 @@ export class NotificationsController {
       channels?: { sms?: boolean; email?: boolean; inApp?: boolean };
       expiryDate?: string;
       amount?: number;
+      targetFilters?: { category?: string[]; typeOfJob?: string[]; address?: string[]; traderStatus?: string[]; licenseState?: string[] };
     },
     @CurrentUser('sub') userId?: string,
   ) {

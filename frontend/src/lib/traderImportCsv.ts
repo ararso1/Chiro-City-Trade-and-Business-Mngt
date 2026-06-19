@@ -1,18 +1,20 @@
 /** CSV template for bulk trader import (UTF-8). */
-export const TRADER_CSV_TEMPLATE = `fullName,phone,email,nationalId,gender,dob,address,woreda,kebele
-"Sample Trader",+251911000000,sample@example.com,,male,1990-05-15,"Bole, Addis",W01,K02
+export const TRADER_CSV_TEMPLATE = `fullName,gender,nationalId,address,typeOfJob,phone,tin,plateNumber,associationType,businessArea,category
+"Sample Trader",male,ET-1234567890,"Bole, Addis",Merchant,+251911000000,TIN-00001,AA-12345,Taxi Association,Transport,Urban Transport
 `;
 
 export type ParsedTraderRow = {
   fullName: string;
-  phone: string;
-  email: string;
+  tin: string;
+  phone?: string;
   nationalId?: string;
   gender?: string;
-  dob?: string;
   address?: string;
-  woreda?: string;
-  kebele?: string;
+  typeOfJob?: string;
+  plateNumber?: string;
+  associationType?: string;
+  businessArea?: string;
+  category?: string;
 };
 
 function normalizeHeader(h: string) {
@@ -23,17 +25,21 @@ function normalizeHeader(h: string) {
 const HEADER_TO_FIELD: Record<string, keyof ParsedTraderRow> = {
   fullname: 'fullName',
   name: 'fullName',
+  tin: 'tin',
   phone: 'phone',
-  email: 'email',
   nationalid: 'nationalId',
   idnumber: 'nationalId',
   gender: 'gender',
-  dob: 'dob',
-  dateofbirth: 'dob',
-  birthdate: 'dob',
   address: 'address',
-  woreda: 'woreda',
-  kebele: 'kebele',
+  typeofjob: 'typeOfJob',
+  job: 'typeOfJob',
+  platenumber: 'plateNumber',
+  plate: 'plateNumber',
+  associationtype: 'associationType',
+  businesstypeassociation: 'associationType',
+  areaofbusiness: 'businessArea',
+  businessarea: 'businessArea',
+  category: 'category',
 };
 
 function parseCsvLine(line: string): string[] {
@@ -87,10 +93,10 @@ export function parseTradersCsv(text: string): { rows: ParsedTraderRow[]; errors
       const v = cells[idx]?.trim();
       if (v) (obj as any)[field] = v;
     });
-    if (!obj.fullName?.trim() || !obj.phone?.trim() || !obj.email?.trim()) {
+    if (!obj.fullName?.trim() || !obj.tin?.trim()) {
       errors.push({
         line: lineNo,
-        message: 'Missing fullName, phone, or email',
+        message: 'Missing required fullName or tin',
       });
       continue;
     }

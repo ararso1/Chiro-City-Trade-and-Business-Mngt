@@ -16,6 +16,33 @@ const class_validator_1 = require("class-validator");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const trader_dto_1 = require("./dto/trader.dto");
 const fiscal_year_service_1 = require("../fiscal-year/fiscal-year.service");
+function addOneYear(date) {
+    const expiry = new Date(date);
+    expiry.setFullYear(expiry.getFullYear() + 1);
+    return expiry;
+}
+function applyLicenseRegistrationDates(data, defaultMissing = false) {
+    if (defaultMissing && !data.licenseRegistrationType) {
+        data.licenseRegistrationType = 'new_registration';
+    }
+    if (defaultMissing && !data.licenseRegistrationDate) {
+        data.licenseRegistrationDate = new Date();
+    }
+    if (data.licenseRegistrationDate) {
+        const registrationDate = new Date(data.licenseRegistrationDate);
+        data.licenseRegistrationDate = registrationDate;
+        data.licenseExpiryDate = addOneYear(registrationDate);
+    }
+}
+function splitFilterValues(value) {
+    return (value ?? '')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+}
+function cleanFilterOptions(values) {
+    return values.map((value) => value?.trim()).filter((value) => Boolean(value));
+}
 let TradersService = class TradersService {
     constructor(prisma, fiscalYear) {
         this.prisma = prisma;
@@ -23,8 +50,15 @@ let TradersService = class TradersService {
     }
     async create(dto, createdById) {
         const data = { ...dto };
-        if (dto.dob)
-            data.dob = new Date(dto.dob);
+        applyLicenseRegistrationDates(data, true);
+        if (dto.phone) {
+            const existingPhone = await this.prisma.trader.findFirst({ where: { phone: dto.phone } });
+            if (existingPhone)
+                throw new common_1.BadRequestException('Phone number already exists');
+        }
+        const existingTin = await this.prisma.trader.findFirst({ where: { tin: dto.tin } });
+        if (existingTin)
+            throw new common_1.BadRequestException('TIN already exists');
         if (createdById)
             data.createdById = createdById;
         data.status = 'submitted';
@@ -34,10 +68,29 @@ let TradersService = class TradersService {
         const where = {};
         if (params?.status)
             where.status = params.status;
+        const typeOfJobValues = splitFilterValues(params?.typeOfJob);
+        const categoryValues = splitFilterValues(params?.category);
+        const addressValues = splitFilterValues(params?.address);
+        if (typeOfJobValues.length)
+            where.typeOfJob = { in: typeOfJobValues };
+        if (categoryValues.length)
+            where.category = { in: categoryValues };
+        if (addressValues.length)
+            where.address = { in: addressValues };
+        if (params?.licenseState === 'paused')
+            where.status = 'suspended';
+        if (params?.licenseState === 'expired')
+            where.licenseExpiryDate = { lt: new Date() };
+        if (params?.licenseState === 'renewed_this_year') {
+            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+            const startOfNextYear = new Date(new Date().getFullYear() + 1, 0, 1);
+            where.licenseRegistrationType = 'renewal';
+            where.licenseRegistrationDate = { gte: startOfYear, lt: startOfNextYear };
+        }
         if (params?.search) {
             where.OR = [
                 { fullName: { contains: params.search, mode: 'insensitive' } },
-                { email: { contains: params.search, mode: 'insensitive' } },
+                { tin: { contains: params.search, mode: 'insensitive' } },
                 { phone: { contains: params.search, mode: 'insensitive' } },
             ];
         }
@@ -56,6 +109,33 @@ let TradersService = class TradersService {
         ]);
         return { items, total };
     }
+    async getFilterOptions() {
+        const [typeOfJobRows, categoryRows, addressRows] = await Promise.all([
+            this.prisma.trader.findMany({
+                where: { typeOfJob: { not: null } },
+                distinct: ['typeOfJob'],
+                select: { typeOfJob: true },
+                orderBy: { typeOfJob: 'asc' },
+            }),
+            this.prisma.trader.findMany({
+                where: { category: { not: null } },
+                distinct: ['category'],
+                select: { category: true },
+                orderBy: { category: 'asc' },
+            }),
+            this.prisma.trader.findMany({
+                where: { address: { not: null } },
+                distinct: ['address'],
+                select: { address: true },
+                orderBy: { address: 'asc' },
+            }),
+        ]);
+        return {
+            typeOfJobs: cleanFilterOptions(typeOfJobRows.map((r) => r.typeOfJob)),
+            categories: cleanFilterOptions(categoryRows.map((r) => r.category)),
+            addresses: cleanFilterOptions(addressRows.map((r) => r.address)),
+        };
+    }
     async findOne(id) {
         return this.prisma.trader.findUnique({
             where: { id },
@@ -67,6 +147,7 @@ let TradersService = class TradersService {
                         licenses: true,
                         inspections: { include: { inspector: { select: { name: true } }, violations: true } },
                         payments: { include: { taxType: true } },
+                        documents: true,
                     },
                 },
                 documents: true,
@@ -75,8 +156,17 @@ let TradersService = class TradersService {
     }
     async update(id, dto) {
         const data = { ...dto };
-        if (dto.dob !== undefined)
-            data.dob = dto.dob ? new Date(dto.dob) : null;
+        applyLicenseRegistrationDates(data);
+        if (dto.phone) {
+            const existingPhone = await this.prisma.trader.findFirst({ where: { phone: dto.phone, NOT: { id } } });
+            if (existingPhone)
+                throw new common_1.BadRequestException('Phone number already exists');
+        }
+        if (dto.tin) {
+            const existingTin = await this.prisma.trader.findFirst({ where: { tin: dto.tin, NOT: { id } } });
+            if (existingTin)
+                throw new common_1.BadRequestException('TIN already exists');
+        }
         return this.prisma.trader.update({ where: { id }, data });
     }
     async remove(id) {

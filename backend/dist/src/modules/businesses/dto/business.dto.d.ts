@@ -6,6 +6,9 @@ export declare class CreateBusinessDto {
     category: string;
     type?: string;
     subCategory?: string;
+    businessArea?: string;
+    plateNumber?: string;
+    associationType?: string;
     address?: string;
     woreda?: string;
     kebele?: string;
@@ -23,6 +26,9 @@ export declare class UpdateBusinessDto {
     category?: string;
     type?: string;
     subCategory?: string;
+    businessArea?: string;
+    plateNumber?: string;
+    associationType?: string;
     address?: string;
     woreda?: string;
     kebele?: string;

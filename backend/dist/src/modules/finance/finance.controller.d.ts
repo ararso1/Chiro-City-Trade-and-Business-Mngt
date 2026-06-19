@@ -38,9 +38,9 @@ export declare class FinanceController {
             status: string;
             paidAt: Date | null;
             businessId: string;
-            year: number;
             taxTypeId: string | null;
             currency: string;
+            year: number;
             period: string | null;
             reference: string | null;
             notes: string | null;
@@ -81,17 +81,20 @@ export declare class FinanceController {
             phone: string | null;
             type: string | null;
             address: string | null;
-            woreda: string | null;
-            kebele: string | null;
+            tin: string | null;
+            plateNumber: string | null;
+            associationType: string | null;
+            businessArea: string | null;
+            category: string;
             status: string;
             mesobRef: string | null;
             startDate: Date | null;
             traderId: string;
-            category: string;
+            woreda: string | null;
+            kebele: string | null;
             shopNo: string | null;
             tradeName: string | null;
             subCategory: string | null;
-            tin: string | null;
         };
     } & {
         id: string;
@@ -101,9 +104,9 @@ export declare class FinanceController {
         status: string;
         paidAt: Date | null;
         businessId: string;
-        year: number;
         taxTypeId: string | null;
         currency: string;
+        year: number;
         period: string | null;
         reference: string | null;
         notes: string | null;
