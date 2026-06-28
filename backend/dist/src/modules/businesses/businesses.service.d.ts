@@ -5,7 +5,28 @@ export declare class BusinessesService {
     private prisma;
     private fiscalYear;
     constructor(prisma: PrismaService, fiscalYear: FiscalYearService);
-    create(dto: CreateBusinessDto): Promise<{
+    create(dto: CreateBusinessDto): Promise<({
+        licenses: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            expiryDate: Date | null;
+            traderId: string;
+            businessId: string;
+            licenseNo: string;
+            licenseType: string | null;
+            issueDate: Date | null;
+            qrCode: string | null;
+            issuedById: string | null;
+            renewalReminderSent: boolean;
+        }[];
+        trader: {
+            id: string;
+            email: string | null;
+            fullName: string;
+        };
+    } & {
         id: string;
         name: string;
         createdAt: Date;
@@ -28,7 +49,7 @@ export declare class BusinessesService {
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-    }>;
+    }) | null>;
     findAll(params?: {
         search?: string;
         status?: string;
@@ -42,12 +63,12 @@ export declare class BusinessesService {
                 createdAt: Date;
                 updatedAt: Date;
                 status: string;
+                expiryDate: Date | null;
                 traderId: string;
-                licenseNo: string;
                 businessId: string;
+                licenseNo: string;
                 licenseType: string | null;
                 issueDate: Date | null;
-                expiryDate: Date | null;
                 qrCode: string | null;
                 issuedById: string | null;
                 renewalReminderSent: boolean;
@@ -89,12 +110,12 @@ export declare class BusinessesService {
             createdAt: Date;
             updatedAt: Date;
             status: string;
+            expiryDate: Date | null;
             traderId: string;
-            licenseNo: string;
             businessId: string;
+            licenseNo: string;
             licenseType: string | null;
             issueDate: Date | null;
-            expiryDate: Date | null;
             qrCode: string | null;
             issuedById: string | null;
             renewalReminderSent: boolean;
@@ -180,12 +201,12 @@ export declare class BusinessesService {
             updatedAt: Date;
             amount: import("@prisma/client/runtime/library").Decimal;
             status: string;
+            year: number;
             paidAt: Date | null;
+            period: string | null;
             businessId: string;
             taxTypeId: string | null;
             currency: string;
-            year: number;
-            period: string | null;
             reference: string | null;
             notes: string | null;
         })[];
@@ -213,7 +234,28 @@ export declare class BusinessesService {
         tradeName: string | null;
         subCategory: string | null;
     }) | null>;
-    update(id: string, dto: UpdateBusinessDto): Promise<{
+    update(id: string, dto: UpdateBusinessDto): Promise<({
+        licenses: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            expiryDate: Date | null;
+            traderId: string;
+            businessId: string;
+            licenseNo: string;
+            licenseType: string | null;
+            issueDate: Date | null;
+            qrCode: string | null;
+            issuedById: string | null;
+            renewalReminderSent: boolean;
+        }[];
+        trader: {
+            id: string;
+            email: string | null;
+            fullName: string;
+        };
+    } & {
         id: string;
         name: string;
         createdAt: Date;
@@ -236,7 +278,7 @@ export declare class BusinessesService {
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-    }>;
+    }) | null>;
     remove(id: string): Promise<{
         success: true;
         id: string;

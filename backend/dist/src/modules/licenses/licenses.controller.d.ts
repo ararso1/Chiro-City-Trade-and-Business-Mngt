@@ -8,15 +8,17 @@ export declare class LicensesController {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
     }>;
     findAll(businessId?: string, traderId?: string, status?: string, skip?: string, take?: string): Promise<{
         items: ({
@@ -39,15 +41,17 @@ export declare class LicensesController {
             createdAt: Date;
             updatedAt: Date;
             status: string;
+            expiryDate: Date | null;
             traderId: string;
-            licenseNo: string;
             businessId: string;
+            licenseNo: string;
             licenseType: string | null;
             issueDate: Date | null;
-            expiryDate: Date | null;
             qrCode: string | null;
             issuedById: string | null;
             renewalReminderSent: boolean;
+        } & {
+            status: string;
         })[];
         total: number;
     }>;
@@ -137,30 +141,53 @@ export declare class LicensesController {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
     }) | null>;
     update(id: string, dto: UpdateLicenseDto, userId?: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
+    }>;
+    renew(id: string, body: {
+        year: number;
+    }, userId?: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        expiryDate: Date | null;
+        traderId: string;
+        businessId: string;
+        licenseNo: string;
+        licenseType: string | null;
+        issueDate: Date | null;
+        qrCode: string | null;
+        issuedById: string | null;
+        renewalReminderSent: boolean;
+    } & {
+        status: string;
     }>;
     remove(id: string): Promise<{
         success: true;

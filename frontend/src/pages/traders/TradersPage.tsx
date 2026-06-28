@@ -53,20 +53,35 @@ import { Label } from '@/components/ui/label';
 import { Users, Plus, Search, Loader2, MoreHorizontal, Eye, Pencil, Trash2, Sparkles, Upload, Download } from 'lucide-react';
 import { api } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
-import { parseTradersCsv, TRADER_CSV_TEMPLATE, type ParsedTraderRow } from '@/lib/traderImportCsv';
+import {
+  ANNUAL_TAX_CSV_TEMPLATE,
+  parseAnnualTaxCsv,
+  parseTradersCsv,
+  TRADER_CSV_TEMPLATE,
+  type ParsedAnnualTaxRow,
+  type ParsedTraderRow,
+} from '@/lib/traderImportCsv';
 
-const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'];
-const LICENSE_FILTERS = [
-  { value: 'renewed_this_year', label: 'Renewed this year' },
+const LICENSE_STATUS_FILTERS = [
+  { value: 'active', label: 'Active' },
+  { value: 'expiring_soon', label: 'Expiring Soon' },
   { value: 'expired', label: 'Expired' },
-  { value: 'paused', label: 'Paused' },
+  { value: 'suspended', label: 'Suspended' },
 ];
 
 const statusVariant = (s: string) => {
-  if (s === 'active') return 'default';
-  if (s === 'draft') return 'secondary';
-  if (s === 'suspended' || s === 'closed') return 'destructive';
+  if (s === 'Active' || s === 'active') return 'default';
+  if (s === 'Expiring Soon' || s === 'draft') return 'secondary';
+  if (s === 'Suspended' || s === 'Expired' || s === 'suspended' || s === 'closed') return 'destructive';
   return 'outline';
+};
+
+const statusBadgeClass = (s: string) => {
+  if (s === 'Active' || s === 'active') return 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50';
+  if (s === 'Expiring Soon') return 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50';
+  if (s === 'Expired') return 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50';
+  if (s === 'Suspended' || s === 'suspended') return 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-100';
+  return '';
 };
 
 const BULK_BATCH_SIZE = 100;
@@ -173,6 +188,16 @@ function summarizeBulkImportResult(result: { created: number; failed: { error: s
   };
 }
 
+function formatCurrency(value: unknown) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export default function TradersPage() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -185,7 +210,6 @@ export default function TradersPage() {
   const [typeOfJobFilter, setTypeOfJobFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [addressFilter, setAddressFilter] = useState<string[]>([]);
-  const [licenseFilter, setLicenseFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -201,8 +225,20 @@ export default function TradersPage() {
     failed: { index: number; error: string }[];
     total: number;
   } | null>(null);
+  const [taxBulkOpen, setTaxBulkOpen] = useState(false);
+  const [taxRows, setTaxRows] = useState<ParsedAnnualTaxRow[]>([]);
+  const [taxParseErrors, setTaxParseErrors] = useState<{ line: number; message: string }[]>([]);
+  const [taxPaste, setTaxPaste] = useState('');
+  const [taxImporting, setTaxImporting] = useState(false);
+  const [taxServerResult, setTaxServerResult] = useState<{
+    imported: number;
+    updated: number;
+    failed: { index: number; tin?: string; error: string }[];
+    total: number;
+  } | null>(null);
 
   const canCreate = hasPermission('traders.create');
+  const canImportAnnualTax = hasPermission('payments.create') || hasPermission('finance.write');
   const canRead = hasPermission('traders.read');
   const canUpdate = hasPermission('traders.update');
   const canDelete = hasPermission('traders.delete');
@@ -222,7 +258,7 @@ export default function TradersPage() {
         typeOfJob: typeOfJobFilter.length ? typeOfJobFilter.join(',') : undefined,
         category: categoryFilter.length ? categoryFilter.join(',') : undefined,
         address: addressFilter.length ? addressFilter.join(',') : undefined,
-        licenseState: licenseFilter || undefined,
+        licenseState: statusFilter || undefined,
         skip: (page - 1) * pageSize,
         take: pageSize,
       });
@@ -237,11 +273,11 @@ export default function TradersPage() {
 
   useEffect(() => {
     load();
-  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, licenseFilter, page, pageSize]);
+  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, licenseFilter, pageSize]);
+  }, [search, statusFilter, typeOfJobFilter, categoryFilter, addressFilter, pageSize]);
 
   useEffect(() => {
     api.traders.filterOptions()
@@ -267,12 +303,36 @@ export default function TradersPage() {
     setBulkServerResult(null);
   };
 
+  const resetTaxBulkImport = () => {
+    setTaxRows([]);
+    setTaxParseErrors([]);
+    setTaxPaste('');
+    setTaxServerResult(null);
+  };
+
+  const applyParsedTaxCsv = (text: string) => {
+    const { rows, errors } = parseAnnualTaxCsv(text);
+    setTaxRows(rows);
+    setTaxParseErrors(errors);
+    setTaxServerResult(null);
+  };
+
   const downloadTraderTemplate = () => {
     const blob = new Blob([TRADER_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'traders-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAnnualTaxTemplate = () => {
+    const blob = new Blob([ANNUAL_TAX_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'annual-tax-import-template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -318,6 +378,29 @@ export default function TradersPage() {
     }
   };
 
+  const runTaxBulkImport = async () => {
+    if (taxRows.length === 0) {
+      toast({ title: 'Nothing to import', description: 'Add an annual tax CSV file or paste rows first.', variant: 'destructive' });
+      return;
+    }
+    setTaxImporting(true);
+    setTaxServerResult(null);
+    try {
+      const result = await api.traders.bulkImportAnnualTax(taxRows);
+      setTaxServerResult(result);
+      toast({
+        title: 'Annual tax import finished',
+        description: `${result.imported} imported, ${result.updated} updated, ${result.failed.length} failed.`,
+        variant: result.failed.length > 0 && result.imported === 0 && result.updated === 0 ? 'destructive' : 'default',
+      });
+      await load();
+    } catch (e) {
+      toast({ title: 'Annual tax import failed', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setTaxImporting(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -347,26 +430,43 @@ export default function TradersPage() {
             Register and manage traders. Row actions use permissions (view, update, delete).
           </p>
         </div>
-        {canCreate && (
+        {(canCreate || canImportAnnualTax) && (
           <div className="flex shrink-0 flex-wrap gap-2 justify-end">
-            <Button
-              variant="outline"
-              className="border-[hsl(var(--app-flow-border))]"
-              onClick={() => {
-                resetBulkImport();
-                setBulkOpen(true);
-              }}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Bulk import
-            </Button>
-            <Button
-              className="bg-[hsl(var(--app-flow-accent))] text-[hsl(var(--app-flow-accent-foreground))] hover:bg-[hsl(var(--app-flow-accent)/0.92)]"
-              onClick={() => navigate('/traders/register')}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Register trader
-            </Button>
+            {canImportAnnualTax && (
+              <Button
+                variant="outline"
+                className="border-[hsl(var(--app-flow-border))]"
+                onClick={() => {
+                  resetTaxBulkImport();
+                  setTaxBulkOpen(true);
+                }}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import annual tax
+              </Button>
+            )}
+            {canCreate && (
+              <>
+                <Button
+                  variant="outline"
+                  className="border-[hsl(var(--app-flow-border))]"
+                  onClick={() => {
+                    resetBulkImport();
+                    setBulkOpen(true);
+                  }}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Bulk import
+                </Button>
+                <Button
+                  className="bg-[hsl(var(--app-flow-accent))] text-[hsl(var(--app-flow-accent-foreground))] hover:bg-[hsl(var(--app-flow-accent)/0.92)]"
+                  onClick={() => navigate('/traders/register')}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Register trader
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -381,7 +481,7 @@ export default function TradersPage() {
               </CardTitle>
               <CardDescription>Total: {total}</CardDescription>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
@@ -411,31 +511,18 @@ export default function TradersPage() {
               />
               <Select value={statusFilter || '__all__'} onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}>
                 <SelectTrigger className="w-full border-[hsl(var(--app-flow-border))]">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder="License status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All statuses</SelectItem>
-                  {TRADER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  <SelectItem value="__all__">All license statuses</SelectItem>
+                  {LICENSE_STATUS_FILTERS.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={licenseFilter || '__all__'} onValueChange={(v) => setLicenseFilter(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="w-full border-[hsl(var(--app-flow-border))]">
-                  <SelectValue placeholder="License filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All license states</SelectItem>
-                  {LICENSE_FILTERS.map((filter) => (
-                    <SelectItem key={filter.value} value={filter.value}>
-                      {filter.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {(search || statusFilter || typeOfJobFilter.length > 0 || categoryFilter.length > 0 || addressFilter.length > 0 || licenseFilter) && (
+              {(search || statusFilter || typeOfJobFilter.length > 0 || categoryFilter.length > 0 || addressFilter.length > 0) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -446,7 +533,6 @@ export default function TradersPage() {
                     setTypeOfJobFilter([]);
                     setCategoryFilter([]);
                     setAddressFilter([]);
-                    setLicenseFilter('');
                   }}
                 >
                   Reset filters
@@ -471,7 +557,7 @@ export default function TradersPage() {
                     <TableHead className="hidden lg:table-cell">Type of job</TableHead>
                     <TableHead className="hidden lg:table-cell">Category</TableHead>
                     <TableHead className="hidden xl:table-cell">Address</TableHead>
-                    <TableHead className="hidden md:table-cell">National ID</TableHead>
+                    <TableHead className="hidden lg:table-cell">Annual Tax Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Businesses</TableHead>
                     <TableHead className="w-[70px] text-right">Actions</TableHead>
@@ -488,9 +574,23 @@ export default function TradersPage() {
                         <TableCell className="hidden lg:table-cell text-muted-foreground">{t.typeOfJob ?? '—'}</TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground">{t.category ?? '—'}</TableCell>
                         <TableCell className="hidden xl:table-cell max-w-[180px] truncate text-muted-foreground">{t.address ?? '—'}</TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">{t.nationalId ?? '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell whitespace-nowrap">
+                          {t.annualTaxAmount != null ? (
+                            <div>
+                              <p className="font-medium">{formatCurrency(t.annualTaxAmount)}</p>
+                              <p className="text-xs text-muted-foreground">{t.annualTaxYear}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
+                          <Badge
+                            variant={statusVariant(t.licenseStatus ?? t.status)}
+                            className={statusBadgeClass(t.licenseStatus ?? t.status)}
+                          >
+                            {t.licenseStatus ?? t.status}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-center">{t.businesses?.length ?? 0}</TableCell>
                         <TableCell className="text-right">
@@ -751,6 +851,146 @@ export default function TradersPage() {
                 </>
               ) : (
                 `Import ${bulkRows.length} trader${bulkRows.length !== 1 ? 's' : ''}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={taxBulkOpen}
+        onOpenChange={(open) => {
+          setTaxBulkOpen(open);
+          if (!open) resetTaxBulkImport();
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden border-[hsl(var(--app-flow-border))]">
+          <DialogHeader className="p-6 pb-2 space-y-2 border-b border-[hsl(var(--app-flow-border))] bg-muted/15">
+            <DialogTitle>Bulk import annual tax</DialogTitle>
+            <DialogDescription>
+              Upload a UTF-8 CSV with columns: TIN, Amount, Year. Records are matched by TIN and annual tax records for the same year are updated.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="border-[hsl(var(--app-flow-border))]" onClick={downloadAnnualTaxTemplate}>
+                <Download className="h-4 w-4 mr-2" />
+                Download template
+              </Button>
+              <label className="inline-flex">
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!f) return;
+                    try {
+                      const text = await f.text();
+                      applyParsedTaxCsv(text);
+                    } catch (err) {
+                      toast({ title: 'Could not read file', description: (err as Error).message, variant: 'destructive' });
+                    }
+                  }}
+                />
+                <Button type="button" variant="secondary" size="sm" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose CSV
+                  </span>
+                </Button>
+              </label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="annual-tax-csv-paste">Or paste CSV</Label>
+              <Textarea
+                id="annual-tax-csv-paste"
+                placeholder={'TIN,Amount,Year\nTIN-00001,2500,2026'}
+                className="min-h-[100px] font-mono text-sm border-[hsl(var(--app-flow-border))]"
+                value={taxPaste}
+                onChange={(e) => setTaxPaste(e.target.value)}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => applyParsedTaxCsv(taxPaste)}>
+                Parse pasted text
+              </Button>
+            </div>
+            {taxParseErrors.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                <p className="font-medium text-destructive mb-1">Skipped rows (fix and re-import)</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground max-h-28 overflow-y-auto">
+                  {taxParseErrors.map((err, i) => (
+                    <li key={i}>
+                      Line {err.line}: {err.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {taxRows.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  Preview: {taxRows.length} row{taxRows.length !== 1 ? 's' : ''}
+                  {taxRows.length > 25 ? ' (showing first 25)' : ''}
+                </p>
+                <div className="rounded-md border border-[hsl(var(--app-flow-border))] overflow-x-auto max-h-48 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="whitespace-nowrap">TIN</TableHead>
+                        <TableHead className="whitespace-nowrap">Amount</TableHead>
+                        <TableHead className="whitespace-nowrap">Year</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {taxRows.slice(0, 25).map((r, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="max-w-[180px] truncate">{r.tin}</TableCell>
+                          <TableCell className="whitespace-nowrap">{formatCurrency(r.amount)}</TableCell>
+                          <TableCell className="text-muted-foreground">{r.year}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+            {taxServerResult && (
+              <div className="rounded-md border border-[hsl(var(--app-flow-border))] bg-muted/20 p-3 text-sm space-y-2">
+                <p>
+                  <span className="font-medium text-foreground">{taxServerResult.imported}</span> imported,{' '}
+                  <span className="font-medium text-foreground">{taxServerResult.updated}</span> updated,{' '}
+                  <span className="font-medium text-destructive">{taxServerResult.failed.length}</span> failed (of {taxServerResult.total}).
+                </p>
+                {taxServerResult.failed.length > 0 && (
+                  <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground max-h-32 overflow-y-auto">
+                    {taxServerResult.failed.map((f, i) => (
+                      <li key={i}>
+                        Row {f.index + 1}{f.tin ? ` (${f.tin})` : ''}: {f.error}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="p-6 pt-2 border-t border-[hsl(var(--app-flow-border))] bg-muted/10 sm:justify-between">
+            <Button type="button" variant="ghost" onClick={() => setTaxBulkOpen(false)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={taxRows.length === 0 || taxImporting}
+              className="bg-[hsl(var(--app-flow-accent))] text-[hsl(var(--app-flow-accent-foreground))] hover:bg-[hsl(var(--app-flow-accent)/0.92)]"
+              onClick={runTaxBulkImport}
+            >
+              {taxImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing…
+                </>
+              ) : (
+                `Import ${taxRows.length} tax row${taxRows.length !== 1 ? 's' : ''}`
               )}
             </Button>
           </DialogFooter>

@@ -102,6 +102,14 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ traders }),
       }),
+    bulkImportAnnualTax: (rows: { tin: string; amount: number; year: number }[]) =>
+      request<{ imported: number; updated: number; failed: { index: number; tin?: string; error: string }[]; total: number }>(
+        '/traders/annual-tax-import',
+        {
+          method: 'POST',
+          body: JSON.stringify({ rows }),
+        },
+      ),
   },
   businesses: {
     list: (params?: { search?: string; status?: string; traderId?: string; skip?: number; take?: number }) =>
@@ -118,6 +126,7 @@ export const api = {
     get: (id: string) => request<any>('/licenses/' + id),
     create: (body: object) => request<any>('/licenses', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: object) => request<any>('/licenses/' + id, { method: 'PUT', body: JSON.stringify(body) }),
+    renew: (id: string, year: number) => request<any>('/licenses/' + id + '/renew', { method: 'POST', body: JSON.stringify({ year }) }),
     delete: (id: string) =>
       request<{ success: boolean; id: string }>('/licenses/' + id, { method: 'DELETE' }),
   },

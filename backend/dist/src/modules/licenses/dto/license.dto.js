@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateLicenseDto = exports.CreateLicenseDto = exports.LICENSE_STATUSES = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
-exports.LICENSE_STATUSES = ['application', 'review', 'approval', 'issued', 'renew', 'expired'];
+exports.LICENSE_STATUSES = ['Active', 'Expired', 'Expiring Soon', 'Suspended'];
 class CreateLicenseDto {
 }
 exports.CreateLicenseDto = CreateLicenseDto;

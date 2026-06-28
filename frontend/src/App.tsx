@@ -12,8 +12,6 @@ import {
   TraderDetailPage,
   TraderEditPage,
   TraderRegistrationPage,
-  BusinessesPage,
-  LicensesPage,
   FinancePage,
   InspectionsPage,
   ComplaintsPage,
@@ -128,8 +126,8 @@ function AppRoutes() {
         <Route path="traders/:id/edit" element={<TraderEditPage />} />
         <Route path="traders/:id" element={<TraderDetailPage />} />
         <Route path="traders" element={<TradersPage />} />
-        <Route path="businesses" element={<BusinessesPage />} />
-        <Route path="licenses" element={<LicensesPage />} />
+        <Route path="businesses" element={<Navigate to="/traders" replace />} />
+        <Route path="licenses" element={<Navigate to="/traders" replace />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="inspections" element={<InspectionsPage />} />
         <Route path="complaints" element={<ComplaintsPage />} />

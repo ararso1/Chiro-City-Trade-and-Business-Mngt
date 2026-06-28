@@ -13,17 +13,64 @@ exports.BusinessesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const fiscal_year_service_1 = require("../fiscal-year/fiscal-year.service");
+function generateLicenseNo() {
+    const pad = (n, w) => String(n).padStart(w, '0');
+    const t = Date.now();
+    const r = Math.floor(Math.random() * 10000);
+    return `LIC-${pad(t % 100000000, 8)}-${pad(r, 4)}`;
+}
+function addOneYear(date) {
+    const expiry = new Date(date);
+    expiry.setFullYear(expiry.getFullYear() + 1);
+    return expiry;
+}
+function lifecycleStatus(issueDate, expiryDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    if (expiry < today)
+        return 'Expired';
+    const days = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return days <= 30 ? 'Expiring Soon' : 'Active';
+}
+function businessLicenseData(business) {
+    const issueDate = business.startDate ?? business.createdAt ?? new Date();
+    const expiryDate = addOneYear(issueDate);
+    return {
+        licenseNo: generateLicenseNo(),
+        traderId: business.traderId,
+        businessId: business.id,
+        licenseType: business.type || business.category || 'Annual Trading',
+        issueDate,
+        expiryDate,
+        status: lifecycleStatus(issueDate, expiryDate),
+    };
+}
+function businessOnlyData(dto) {
+    const { licenseNo, licenseType, licenseIssueDate, licenseExpiryDate, licenseStatus, ...businessData } = dto;
+    return businessData;
+}
 let BusinessesService = class BusinessesService {
     constructor(prisma, fiscalYear) {
         this.prisma = prisma;
         this.fiscalYear = fiscalYear;
     }
     async create(dto) {
-        const data = { ...dto };
+        const data = businessOnlyData(dto);
         if (dto.startDate)
             data.startDate = new Date(dto.startDate);
         data.status = dto.status ?? 'pending';
-        return this.prisma.business.create({ data });
+        return this.prisma.$transaction(async (tx) => {
+            const business = await tx.business.create({ data });
+            await tx.license.create({
+                data: businessLicenseData(business),
+            });
+            return tx.business.findUnique({
+                where: { id: business.id },
+                include: { trader: { select: { id: true, fullName: true, email: true } }, licenses: true },
+            });
+        });
     }
     async findAll(params) {
         const where = {};
@@ -66,10 +113,25 @@ let BusinessesService = class BusinessesService {
         });
     }
     async update(id, dto) {
-        const data = { ...dto };
+        const data = businessOnlyData(dto);
         if (dto.startDate !== undefined)
             data.startDate = dto.startDate ? new Date(dto.startDate) : null;
-        return this.prisma.business.update({ where: { id }, data });
+        return this.prisma.$transaction(async (tx) => {
+            const business = await tx.business.update({ where: { id }, data });
+            const existingLicense = await tx.license.findFirst({
+                where: { businessId: id },
+                orderBy: { createdAt: 'asc' },
+            });
+            if (!existingLicense) {
+                await tx.license.create({
+                    data: businessLicenseData(business),
+                });
+            }
+            return tx.business.findUnique({
+                where: { id },
+                include: { trader: { select: { id: true, fullName: true, email: true } }, licenses: true },
+            });
+        });
     }
     async remove(id) {
         await this.prisma.business.delete({ where: { id } });

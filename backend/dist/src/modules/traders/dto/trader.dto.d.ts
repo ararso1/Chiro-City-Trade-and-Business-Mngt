@@ -40,3 +40,11 @@ export declare class UpdateTraderDto {
 export declare class BulkImportTradersDto {
     traders: CreateTraderDto[];
 }
+export declare class AnnualTaxImportRowDto {
+    tin: string;
+    amount: number;
+    year: number;
+}
+export declare class BulkImportAnnualTaxDto {
+    rows: AnnualTaxImportRowDto[];
+}

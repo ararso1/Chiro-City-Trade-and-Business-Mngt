@@ -23,8 +23,11 @@ let ReportsService = class ReportsService {
         const paidAtFilter = await this.fiscalYear.getDateFilterFor('paidAt');
         const baseWhere = dateFilter ? { createdAt: dateFilter } : {};
         const paymentWhere = { status: 'paid', ...(paidAtFilter ? { paidAt: paidAtFilter } : {}) };
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const dueSoonDate = new Date();
         dueSoonDate.setDate(dueSoonDate.getDate() + 30);
+        const notSuspendedLicense = { NOT: { status: { in: ['suspended', 'Suspended'] } } };
         const [totalTraders, activeTraders, submittedTraders, totalBusinesses, activeBusinesses, pendingBusinesses, totalLicenses, activeLicenses, expiredLicenses, pendingLicenses, renewalLicenses, licensesExpiringSoon, totalViolations, openComplaints, scheduledInspections, completedInspections, pendingPayments, overduePayments, paidPayments, traderDocuments, businessDocuments, recentTraders, recentBusinesses,] = await Promise.all([
             this.prisma.trader.count({ where: baseWhere }),
             this.prisma.trader.count({ where: { status: 'active', ...baseWhere } }),
@@ -33,11 +36,11 @@ let ReportsService = class ReportsService {
             this.prisma.business.count({ where: { status: 'active', ...baseWhere } }),
             this.prisma.business.count({ where: { status: 'pending', ...baseWhere } }),
             this.prisma.license.count({ where: dateFilter ? { createdAt: dateFilter } : {} }),
-            this.prisma.license.count({ where: { status: 'issued', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
-            this.prisma.license.count({ where: { status: 'expired', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
-            this.prisma.license.count({ where: { status: { in: ['application', 'review', 'approval'] }, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
-            this.prisma.license.count({ where: { status: 'renew', ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
-            this.prisma.license.count({ where: { status: 'issued', expiryDate: { lte: dueSoonDate, gte: new Date() } } }),
+            this.prisma.license.count({ where: { ...notSuspendedLicense, OR: [{ expiryDate: null }, { expiryDate: { gt: dueSoonDate } }], ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { ...notSuspendedLicense, expiryDate: { lt: today }, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { status: { in: ['suspended', 'Suspended'] }, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { ...notSuspendedLicense, expiryDate: { gte: today, lte: dueSoonDate }, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
+            this.prisma.license.count({ where: { ...notSuspendedLicense, expiryDate: { gte: today, lte: dueSoonDate } } }),
             this.prisma.violation.count({ where: { resolvedAt: null, ...(dateFilter ? { createdAt: dateFilter } : {}) } }),
             this.prisma.complaint.count({ where: { status: 'open', ...baseWhere } }),
             this.prisma.inspection.count({ where: { status: 'scheduled', ...baseWhere } }),

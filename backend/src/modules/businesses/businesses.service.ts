@@ -3,6 +3,62 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
 import { FiscalYearService } from '../fiscal-year/fiscal-year.service';
 
+function generateLicenseNo(): string {
+  const pad = (n: number, w: number) => String(n).padStart(w, '0');
+  const t = Date.now();
+  const r = Math.floor(Math.random() * 10000);
+  return `LIC-${pad(t % 100000000, 8)}-${pad(r, 4)}`;
+}
+
+function addOneYear(date: Date) {
+  const expiry = new Date(date);
+  expiry.setFullYear(expiry.getFullYear() + 1);
+  return expiry;
+}
+
+function lifecycleStatus(issueDate: Date, expiryDate: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+  if (expiry < today) return 'Expired';
+  const days = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return days <= 30 ? 'Expiring Soon' : 'Active';
+}
+
+function businessLicenseData(business: {
+  traderId: string;
+  id: string;
+  type?: string | null;
+  category?: string | null;
+  startDate?: Date | null;
+  createdAt?: Date;
+}) {
+  const issueDate = business.startDate ?? business.createdAt ?? new Date();
+  const expiryDate = addOneYear(issueDate);
+  return {
+    licenseNo: generateLicenseNo(),
+    traderId: business.traderId,
+    businessId: business.id,
+    licenseType: business.type || business.category || 'Annual Trading',
+    issueDate,
+    expiryDate,
+    status: lifecycleStatus(issueDate, expiryDate),
+  };
+}
+
+function businessOnlyData(dto: CreateBusinessDto | UpdateBusinessDto) {
+  const {
+    licenseNo,
+    licenseType,
+    licenseIssueDate,
+    licenseExpiryDate,
+    licenseStatus,
+    ...businessData
+  } = dto as any;
+  return businessData;
+}
+
 @Injectable()
 export class BusinessesService {
   constructor(
@@ -11,11 +67,20 @@ export class BusinessesService {
   ) {}
 
   async create(dto: CreateBusinessDto) {
-    const data: any = { ...dto };
+    const data: any = businessOnlyData(dto);
     if (dto.startDate) data.startDate = new Date(dto.startDate);
     // Registration creates the business in "pending" state unless a workflow explicitly sets it.
     data.status = dto.status ?? 'pending';
-    return this.prisma.business.create({ data });
+    return this.prisma.$transaction(async (tx) => {
+      const business = await tx.business.create({ data });
+      await tx.license.create({
+        data: businessLicenseData(business),
+      });
+      return tx.business.findUnique({
+        where: { id: business.id },
+        include: { trader: { select: { id: true, fullName: true, email: true } }, licenses: true },
+      });
+    });
   }
 
   async findAll(params?: { search?: string; status?: string; traderId?: string; skip?: number; take?: number }) {
@@ -58,9 +123,24 @@ export class BusinessesService {
   }
 
   async update(id: string, dto: UpdateBusinessDto) {
-    const data: any = { ...dto };
+    const data: any = businessOnlyData(dto);
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
-    return this.prisma.business.update({ where: { id }, data });
+    return this.prisma.$transaction(async (tx) => {
+      const business = await tx.business.update({ where: { id }, data });
+      const existingLicense = await tx.license.findFirst({
+        where: { businessId: id },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!existingLicense) {
+        await tx.license.create({
+          data: businessLicenseData(business),
+        });
+      }
+      return tx.business.findUnique({
+        where: { id },
+        include: { trader: { select: { id: true, fullName: true, email: true } }, licenses: true },
+      });
+    });
   }
 
   async remove(id: string) {

@@ -3,7 +3,28 @@ import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
 export declare class BusinessesController {
     private businesses;
     constructor(businesses: BusinessesService);
-    create(dto: CreateBusinessDto): Promise<{
+    create(dto: CreateBusinessDto): Promise<({
+        licenses: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            expiryDate: Date | null;
+            traderId: string;
+            businessId: string;
+            licenseNo: string;
+            licenseType: string | null;
+            issueDate: Date | null;
+            qrCode: string | null;
+            issuedById: string | null;
+            renewalReminderSent: boolean;
+        }[];
+        trader: {
+            id: string;
+            email: string | null;
+            fullName: string;
+        };
+    } & {
         id: string;
         name: string;
         createdAt: Date;
@@ -26,7 +47,7 @@ export declare class BusinessesController {
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-    }>;
+    }) | null>;
     findAll(search?: string, status?: string, traderId?: string, skip?: string, take?: string): Promise<{
         items: ({
             licenses: {
@@ -34,12 +55,12 @@ export declare class BusinessesController {
                 createdAt: Date;
                 updatedAt: Date;
                 status: string;
+                expiryDate: Date | null;
                 traderId: string;
-                licenseNo: string;
                 businessId: string;
+                licenseNo: string;
                 licenseType: string | null;
                 issueDate: Date | null;
-                expiryDate: Date | null;
                 qrCode: string | null;
                 issuedById: string | null;
                 renewalReminderSent: boolean;
@@ -81,12 +102,12 @@ export declare class BusinessesController {
             createdAt: Date;
             updatedAt: Date;
             status: string;
+            expiryDate: Date | null;
             traderId: string;
-            licenseNo: string;
             businessId: string;
+            licenseNo: string;
             licenseType: string | null;
             issueDate: Date | null;
-            expiryDate: Date | null;
             qrCode: string | null;
             issuedById: string | null;
             renewalReminderSent: boolean;
@@ -172,12 +193,12 @@ export declare class BusinessesController {
             updatedAt: Date;
             amount: import("@prisma/client/runtime/library").Decimal;
             status: string;
+            year: number;
             paidAt: Date | null;
+            period: string | null;
             businessId: string;
             taxTypeId: string | null;
             currency: string;
-            year: number;
-            period: string | null;
             reference: string | null;
             notes: string | null;
         })[];
@@ -205,7 +226,28 @@ export declare class BusinessesController {
         tradeName: string | null;
         subCategory: string | null;
     }) | null>;
-    update(id: string, dto: UpdateBusinessDto): Promise<{
+    update(id: string, dto: UpdateBusinessDto): Promise<({
+        licenses: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            expiryDate: Date | null;
+            traderId: string;
+            businessId: string;
+            licenseNo: string;
+            licenseType: string | null;
+            issueDate: Date | null;
+            qrCode: string | null;
+            issuedById: string | null;
+            renewalReminderSent: boolean;
+        }[];
+        trader: {
+            id: string;
+            email: string | null;
+            fullName: string;
+        };
+    } & {
         id: string;
         name: string;
         createdAt: Date;
@@ -228,7 +270,7 @@ export declare class BusinessesController {
         shopNo: string | null;
         tradeName: string | null;
         subCategory: string | null;
-    }>;
+    }) | null>;
     remove(id: string): Promise<{
         success: true;
         id: string;

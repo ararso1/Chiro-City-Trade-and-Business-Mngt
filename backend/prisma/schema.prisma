@@ -126,12 +126,12 @@ model License {
   licenseNo     String    @unique // license_no
   traderId      String
   trader        Trader    @relation(fields: [traderId], references: [id], onDelete: Cascade)
-  businessId    String
+  businessId    String    @unique
   business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   licenseType   String?   // e.g. annual_trading, sector_specific
   issueDate     DateTime? // set when status = issued
   expiryDate    DateTime? // set when status = issued
-  status        String    @default("application") // application | review | approval | issued | renew | expired
+  status        String    @default("Active") // Active | Expired | Expiring Soon | Suspended
   qrCode        String?   // URL or data for QR code
   issuedById    String?
   issuedBy      User?     @relation("LicenseIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)

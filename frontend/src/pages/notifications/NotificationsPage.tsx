@@ -83,19 +83,19 @@ const ANNOUNCEMENT_TYPES: { value: AnnouncementType; label: string }[] = [
   { value: "announcement", label: "Announcement" },
 ];
 
-const TRADER_STATUS_TARGETS = [
-  { value: "active", label: "Active traders" },
-  { value: "submitted", label: "Submitted traders" },
-  { value: "verified", label: "Verified traders" },
-  { value: "suspended", label: "Paused traders" },
-  { value: "closed", label: "Closed traders" },
-];
+const ANNUAL_TAX_TITLE = "Annual Tax Reminder";
+const ANNUAL_TAX_MESSAGE =
+  "Dear Chiro City TIN {{TIN}} taxpayer, your annual tax for {{YEAR}} is {{AMOUNT}} ETB. Please pay on time.";
+const ANNUAL_TAX_SAMPLE = ANNUAL_TAX_MESSAGE
+  .replace("{{TIN}}", "TIN-00001")
+  .replace("{{YEAR}}", String(new Date().getFullYear()))
+  .replace("{{AMOUNT}}", "2,500");
 
-const LICENSE_STATE_TARGETS = [
-  { value: "renewed_this_year", label: "Renewed this year" },
-  { value: "unrenewed", label: "Unrenewed this year" },
+const LICENSE_STATUS_TARGETS = [
+  { value: "active", label: "Active" },
+  { value: "expiring_soon", label: "Expiring Soon" },
   { value: "expired", label: "Expired" },
-  { value: "paused", label: "Paused" },
+  { value: "suspended", label: "Suspended" },
 ];
 
 const emptyTargetFilters = {
@@ -113,6 +113,26 @@ function buildTargetFilters(filters: typeof emptyTargetFilters) {
     address: filters.address.length ? filters.address : undefined,
     traderStatus: filters.traderStatus.length ? filters.traderStatus : undefined,
     licenseState: filters.licenseState.length ? filters.licenseState : undefined,
+  };
+}
+
+const initialNotificationForm = {
+  type: "announcement" as AnnouncementType,
+  title: "",
+  message: "",
+  expiryDate: "",
+  channels: { inApp: true, email: false, sms: false },
+  targetFilters: emptyTargetFilters,
+};
+
+function applyAnnualTaxDefaults(prev: typeof initialNotificationForm) {
+  if (prev.type === "tax_reminder") return prev;
+  return {
+    ...prev,
+    type: "tax_reminder" as AnnouncementType,
+    title: ANNUAL_TAX_TITLE,
+    message: ANNUAL_TAX_MESSAGE,
+    channels: { ...prev.channels, sms: true },
   };
 }
 
@@ -185,14 +205,7 @@ export default function NotificationsPage() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [targetOptions, setTargetOptions] = useState<TraderFilterOptions>({ typeOfJobs: [], categories: [], addresses: [] });
 
-  const [form, setForm] = useState({
-    type: "announcement" as AnnouncementType,
-    title: "",
-    message: "",
-    expiryDate: "",
-    channels: { inApp: true, email: false, sms: false },
-    targetFilters: emptyTargetFilters,
-  });
+  const [form, setForm] = useState(initialNotificationForm);
 
   const [notificationSettings, setNotificationSettings] = useState({
     email: {
@@ -311,14 +324,7 @@ export default function NotificationsPage() {
             : "default",
       });
       setSendDialog(false);
-      setForm({
-        type: "announcement",
-        title: "",
-        message: "",
-        expiryDate: "",
-        channels: { inApp: true, email: false, sms: false },
-        targetFilters: emptyTargetFilters,
-      });
+      setForm(initialNotificationForm);
       loadInbox();
     } catch (e) {
       toast({
@@ -843,7 +849,11 @@ export default function NotificationsPage() {
               <Select
                 value={form.type}
                 onValueChange={(v) =>
-                  setForm((prev) => ({ ...prev, type: v as AnnouncementType }))
+                  setForm((prev) =>
+                    v === "tax_reminder"
+                      ? applyAnnualTaxDefaults(prev)
+                      : { ...prev, type: v as AnnouncementType }
+                  )
                 }
               >
                 <SelectTrigger>
@@ -890,6 +900,17 @@ export default function NotificationsPage() {
                 placeholder="Body of the notification"
                 rows={3}
               />
+              {form.type === "tax_reminder" && (
+                <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <p className="font-medium">Editable SMS sample</p>
+                  <p className="mt-1">{ANNUAL_TAX_SAMPLE}</p>
+                  <p className="mt-2 text-amber-800">
+                    Use placeholders <span className="font-mono">{"{{TIN}}"}</span>,{" "}
+                    <span className="font-mono">{"{{AMOUNT}}"}</span>, and{" "}
+                    <span className="font-mono">{"{{YEAR}}"}</span>. They will be filled per trader from the imported annual tax records.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="rounded-lg border border-[hsl(var(--app-flow-border))] bg-muted/20 p-4 space-y-3">
               <div>
@@ -933,21 +954,10 @@ export default function NotificationsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Trader status</Label>
+                  <Label>License status</Label>
                   <MultiSelectTarget
-                    label="Select trader statuses"
-                    values={TRADER_STATUS_TARGETS.map((status) => status.value)}
-                    selected={form.targetFilters.traderStatus}
-                    onChange={(next) =>
-                      setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, traderStatus: next } }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>License state</Label>
-                  <MultiSelectTarget
-                    label="Select license states"
-                    values={LICENSE_STATE_TARGETS.map((state) => state.value)}
+                    label="Select license statuses"
+                    values={LICENSE_STATUS_TARGETS.map((status) => status.value)}
                     selected={form.targetFilters.licenseState}
                     onChange={(next) =>
                       setForm((prev) => ({ ...prev, targetFilters: { ...prev.targetFilters, licenseState: next } }))

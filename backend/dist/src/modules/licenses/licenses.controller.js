@@ -42,10 +42,13 @@ let LicensesController = class LicensesController {
     }
     update(id, dto, userId) {
         const payload = { ...dto };
-        if (dto.status === 'issued' && !dto.issuedById && userId) {
+        if ((dto.status === 'issued' || dto.status?.toLowerCase() === 'active') && !dto.issuedById && userId) {
             payload.issuedById = userId;
         }
         return this.licenses.update(id, payload);
+    }
+    renew(id, body, userId) {
+        return this.licenses.renew(id, Number(body.year), userId);
     }
     remove(id) {
         return this.licenses.remove(id);
@@ -90,6 +93,16 @@ __decorate([
     __metadata("design:paramtypes", [String, license_dto_1.UpdateLicenseDto, String]),
     __metadata("design:returntype", void 0)
 ], LicensesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/renew'),
+    (0, permissions_decorator_1.RequirePermissions)('licenses.update', '*'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", void 0)
+], LicensesController.prototype, "renew", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('licenses.delete'),

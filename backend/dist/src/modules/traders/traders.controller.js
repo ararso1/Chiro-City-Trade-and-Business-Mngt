@@ -31,6 +31,9 @@ let TradersController = class TradersController {
     bulkImport(body, userId) {
         return this.traders.bulkImport(body.traders, userId);
     }
+    bulkImportAnnualTax(body) {
+        return this.traders.bulkImportAnnualTax(body.rows);
+    }
     findAll(search, status, typeOfJob, category, address, licenseState, skip, take) {
         return this.traders.findAll({
             search,
@@ -75,6 +78,14 @@ __decorate([
     __metadata("design:paramtypes", [trader_dto_1.BulkImportTradersDto, String]),
     __metadata("design:returntype", void 0)
 ], TradersController.prototype, "bulkImport", null);
+__decorate([
+    (0, common_1.Post)('annual-tax-import'),
+    (0, permissions_decorator_1.RequirePermissions)('payments.create', 'finance.write', '*'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [trader_dto_1.BulkImportAnnualTaxDto]),
+    __metadata("design:returntype", void 0)
+], TradersController.prototype, "bulkImportAnnualTax", null);
 __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('traders.read', '*'),

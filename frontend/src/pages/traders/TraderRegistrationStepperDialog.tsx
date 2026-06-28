@@ -28,7 +28,7 @@ import { Briefcase, FileText, Plus, Trash2, User, Users } from 'lucide-react';
 
 const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'] as const;
 const BUSINESS_STATUSES = ['draft', 'pending', 'active', 'suspended', 'closed'] as const;
-const LICENSE_STATUSES = ['application', 'review', 'approval', 'issued', 'renew', 'expired'] as const;
+const LICENSE_STATUSES = ['Active', 'Expired', 'Expiring Soon', 'Suspended'] as const;
 
 type TraderForm = {
   fullName: string;
@@ -94,7 +94,7 @@ const emptyLicenseDraft = (): LicenseDraft => ({
   licenseType: '',
   issueDate: '',
   expiryDate: '',
-  status: 'application',
+  status: 'Active',
   qrCode: '',
 });
 
@@ -227,22 +227,6 @@ export default function TraderRegistrationStepperDialog(props: {
     setBusinesses((prev) => prev.map((b) => (b.id === businessId ? { ...b, ...patch } : b)));
   };
 
-  const addLicense = (businessId: string) => {
-    setBusinesses((prev) =>
-      prev.map((b) => (b.id === businessId ? { ...b, licenses: [...b.licenses, emptyLicenseDraft()] } : b)),
-    );
-  };
-
-  const removeLicense = (businessId: string, licenseId: string) => {
-    setBusinesses((prev) =>
-      prev.map((b) => {
-        if (b.id !== businessId) return b;
-        if (b.licenses.length <= 1) return b;
-        return { ...b, licenses: b.licenses.filter((l) => l.id !== licenseId) };
-      }),
-    );
-  };
-
   const updateLicense = (businessId: string, licenseId: string, patch: Partial<LicenseDraft>) => {
     setBusinesses((prev) =>
       prev.map((b) => {
@@ -275,6 +259,7 @@ export default function TraderRegistrationStepperDialog(props: {
       const traderId = createdTrader.id as string;
 
       for (const b of businesses) {
+        const license = b.licenses[0];
         const businessPayload: Record<string, any> = {
           traderId,
           name: b.name.trim(),
@@ -288,26 +273,16 @@ export default function TraderRegistrationStepperDialog(props: {
           phone: cleanOptionalString(b.phone),
           tin: cleanOptionalString(b.tin),
           status: b.status,
+          licenseNo: cleanOptionalString(license?.licenseNo ?? ''),
+          licenseType: cleanOptionalString(license?.licenseType ?? '') ?? 'Annual Trading',
+          licenseIssueDate: cleanOptionalString(license?.issueDate ?? ''),
+          licenseExpiryDate: cleanOptionalString(license?.expiryDate ?? ''),
+          licenseStatus: license?.status ?? 'Active',
         };
-        const createdBusiness = await api.businesses.create(businessPayload);
-        const businessId = createdBusiness.id as string;
-
-        for (const l of b.licenses) {
-          const licensePayload: Record<string, any> = {
-            businessId,
-            traderId,
-            licenseNo: cleanOptionalString(l.licenseNo),
-            licenseType: cleanOptionalString(l.licenseType),
-            issueDate: cleanOptionalString(l.issueDate),
-            expiryDate: cleanOptionalString(l.expiryDate),
-            status: l.status,
-            qrCode: cleanOptionalString(l.qrCode),
-          };
-          await api.licenses.create(licensePayload);
-        }
+        await api.businesses.create(businessPayload);
       }
 
-      toast({ title: 'Trader registered', description: 'Businesses and license applications have been created.' });
+      toast({ title: 'Trader registered', description: 'Businesses and licenses have been created.' });
       onOpenChange(false);
       onCreated(createdTrader.id as string);
     } catch (e) {
@@ -334,7 +309,7 @@ export default function TraderRegistrationStepperDialog(props: {
             <Users className="h-5 w-5" /> {headerTitle}
           </DialogTitle>
           <DialogDescription>
-            One stepper flow for trader registration, multiple businesses, and their license applications.
+            One stepper flow for trader registration, multiple businesses, and their licenses.
           </DialogDescription>
         </DialogHeader>
 
@@ -547,9 +522,9 @@ export default function TraderRegistrationStepperDialog(props: {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
-                    <div className="font-medium">Licenses</div>
+                    <div className="font-medium">License</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Add license applications per business</div>
+                  <div className="text-sm text-muted-foreground">Each business has exactly one license</div>
                 </div>
 
                 <div className="space-y-4">
@@ -559,11 +534,8 @@ export default function TraderRegistrationStepperDialog(props: {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="font-medium">{b.name || 'Business'}</div>
-                            <div className="text-xs text-muted-foreground">Licenses attached to this business</div>
+                            <div className="text-xs text-muted-foreground">One license attached to this business</div>
                           </div>
-                          <Button type="button" variant="outline" size="sm" onClick={() => addLicense(b.id)}>
-                            <Plus className="h-4 w-4 mr-2" /> Add license
-                          </Button>
                         </div>
 
                         <div className="space-y-3">
@@ -571,18 +543,9 @@ export default function TraderRegistrationStepperDialog(props: {
                             <div key={l.id} className="rounded-lg border p-3 space-y-3">
                               <div className="flex items-start justify-between gap-4">
                                 <div>
-                                  <div className="text-sm font-medium">License {idx + 1}</div>
-                                  <div className="text-xs text-muted-foreground">Application workflow</div>
+                                  <div className="text-sm font-medium">Business license</div>
+                                  <div className="text-xs text-muted-foreground">Lifecycle status and expiry</div>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeLicense(b.id, l.id)}
-                                  disabled={b.licenses.length <= 1}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
                               </div>
 
                               <div className="grid grid-cols-2 gap-4">
@@ -648,7 +611,7 @@ export default function TraderRegistrationStepperDialog(props: {
                   <div>
                     <div className="text-lg font-semibold">Preview</div>
                     <div className="text-sm text-muted-foreground">
-                      Trader, businesses, and license applications that will be created.
+                      Trader, businesses, and licenses that will be created.
                     </div>
                   </div>
                   <div className="flex gap-2 flex-wrap">
@@ -690,7 +653,7 @@ export default function TraderRegistrationStepperDialog(props: {
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground pt-2">
-                        License workflow will start at the selected license status (default: application).
+                        License status will start from the selected lifecycle status (default: Active).
                       </div>
                     </CardContent>
                   </Card>
@@ -719,7 +682,7 @@ export default function TraderRegistrationStepperDialog(props: {
                                   #{l.licenseNo || 'auto'} · Exp: {l.expiryDate || '-'}
                                 </div>
                               </div>
-                              <Badge variant={l.status === 'issued' ? 'default' : 'secondary'}>{l.status}</Badge>
+                              <Badge variant={l.status === 'Active' ? 'default' : 'secondary'}>{l.status}</Badge>
                             </div>
                           ))}
                         </div>

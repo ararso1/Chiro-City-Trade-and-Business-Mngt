@@ -1,5 +1,5 @@
 import { TradersService } from './traders.service';
-import { BulkImportTradersDto, CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
+import { BulkImportAnnualTaxDto, BulkImportTradersDto, CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 export declare class TradersController {
     private traders;
     constructor(traders: TradersService);
@@ -36,14 +36,26 @@ export declare class TradersController {
         }[];
         total: number;
     }>;
+    bulkImportAnnualTax(body: BulkImportAnnualTaxDto): Promise<{
+        imported: number;
+        updated: number;
+        failed: {
+            index: number;
+            tin?: string;
+            error: string;
+        }[];
+        total: number;
+    }>;
     findAll(search?: string, status?: string, typeOfJob?: string, category?: string, address?: string, licenseState?: string, skip?: string, take?: string): Promise<{
-        items: ({
+        items: {
+            licenseStatus: string;
+            annualTaxAmount: number | null;
+            annualTaxYear: number;
             businesses: {
                 id: string;
                 name: string;
                 status: string;
             }[];
-        } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
@@ -67,7 +79,7 @@ export declare class TradersController {
             approvedById: string | null;
             mesobRef: string | null;
             licenseExpiryDate: Date | null;
-        })[];
+        }[];
         total: number;
     }>;
     filterOptions(): Promise<{
@@ -82,12 +94,12 @@ export declare class TradersController {
                 createdAt: Date;
                 updatedAt: Date;
                 status: string;
+                expiryDate: Date | null;
                 traderId: string;
-                licenseNo: string;
                 businessId: string;
+                licenseNo: string;
                 licenseType: string | null;
                 issueDate: Date | null;
-                expiryDate: Date | null;
                 qrCode: string | null;
                 issuedById: string | null;
                 renewalReminderSent: boolean;
@@ -147,12 +159,12 @@ export declare class TradersController {
                 updatedAt: Date;
                 amount: import("@prisma/client/runtime/library").Decimal;
                 status: string;
+                year: number;
                 paidAt: Date | null;
+                period: string | null;
                 businessId: string;
                 taxTypeId: string | null;
                 currency: string;
-                year: number;
-                period: string | null;
                 reference: string | null;
                 notes: string | null;
             })[];

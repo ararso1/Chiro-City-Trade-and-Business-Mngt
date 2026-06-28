@@ -1,5 +1,9 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLicenseDto, UpdateLicenseDto } from './dto/license.dto';
+export declare function getLicenseLifecycleStatus(license: {
+    status?: string | null;
+    expiryDate?: Date | string | null;
+}): "Suspended" | "Active" | "Expired" | "Expiring Soon";
 export declare class LicensesService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -8,15 +12,17 @@ export declare class LicensesService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
     }>;
     findAll(params?: {
         businessId?: string;
@@ -45,15 +51,17 @@ export declare class LicensesService {
             createdAt: Date;
             updatedAt: Date;
             status: string;
+            expiryDate: Date | null;
             traderId: string;
-            licenseNo: string;
             businessId: string;
+            licenseNo: string;
             licenseType: string | null;
             issueDate: Date | null;
-            expiryDate: Date | null;
             qrCode: string | null;
             issuedById: string | null;
             renewalReminderSent: boolean;
+        } & {
+            status: string;
         })[];
         total: number;
     }>;
@@ -143,15 +151,17 @@ export declare class LicensesService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
     }) | null>;
     update(id: string, dto: UpdateLicenseDto & {
         issuedById?: string;
@@ -160,15 +170,34 @@ export declare class LicensesService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
+        expiryDate: Date | null;
         traderId: string;
-        licenseNo: string;
         businessId: string;
+        licenseNo: string;
         licenseType: string | null;
         issueDate: Date | null;
-        expiryDate: Date | null;
         qrCode: string | null;
         issuedById: string | null;
         renewalReminderSent: boolean;
+    } & {
+        status: string;
+    }>;
+    renew(id: string, year: number, issuedById?: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        expiryDate: Date | null;
+        traderId: string;
+        businessId: string;
+        licenseNo: string;
+        licenseType: string | null;
+        issueDate: Date | null;
+        qrCode: string | null;
+        issuedById: string | null;
+        renewalReminderSent: boolean;
+    } & {
+        status: string;
     }>;
     remove(id: string): Promise<{
         success: true;

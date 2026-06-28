@@ -19,6 +19,11 @@ export declare class CreateBusinessDto {
     tin?: string;
     status?: string;
     mesobRef?: string;
+    licenseNo?: string;
+    licenseType?: string;
+    licenseIssueDate?: string;
+    licenseExpiryDate?: string;
+    licenseStatus?: string;
 }
 export declare class UpdateBusinessDto {
     name?: string;
@@ -38,4 +43,9 @@ export declare class UpdateBusinessDto {
     email?: string;
     tin?: string;
     status?: string;
+    licenseNo?: string;
+    licenseType?: string;
+    licenseIssueDate?: string;
+    licenseExpiryDate?: string;
+    licenseStatus?: string;
 }

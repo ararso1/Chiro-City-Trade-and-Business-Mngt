@@ -92,6 +92,31 @@ export class CreateBusinessDto {
   @IsOptional()
   @IsString()
   mesobRef?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseNo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  licenseIssueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  licenseExpiryDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseStatus?: string;
 }
 
 export class UpdateBusinessDto {
@@ -179,4 +204,29 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseNo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  licenseIssueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  licenseExpiryDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  licenseStatus?: string;
 }

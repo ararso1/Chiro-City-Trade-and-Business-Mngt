@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BulkImportTradersDto = exports.UpdateTraderDto = exports.CreateTraderDto = exports.LICENSE_REGISTRATION_TYPES = exports.TRADER_STATUSES = void 0;
+exports.BulkImportAnnualTaxDto = exports.AnnualTaxImportRowDto = exports.BulkImportTradersDto = exports.UpdateTraderDto = exports.CreateTraderDto = exports.LICENSE_REGISTRATION_TYPES = exports.TRADER_STATUSES = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
@@ -226,4 +226,31 @@ __decorate([
     (0, class_transformer_1.Type)(() => CreateTraderDto),
     __metadata("design:type", Array)
 ], BulkImportTradersDto.prototype, "traders", void 0);
+class AnnualTaxImportRowDto {
+}
+exports.AnnualTaxImportRowDto = AnnualTaxImportRowDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnnualTaxImportRowDto.prototype, "tin", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], AnnualTaxImportRowDto.prototype, "amount", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AnnualTaxImportRowDto.prototype, "year", void 0);
+class BulkImportAnnualTaxDto {
+}
+exports.BulkImportAnnualTaxDto = BulkImportAnnualTaxDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ type: [AnnualTaxImportRowDto], description: 'Annual tax rows with TIN, Amount, and Year.' }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(1),
+    (0, class_validator_1.ArrayMaxSize)(1000),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => AnnualTaxImportRowDto),
+    __metadata("design:type", Array)
+], BulkImportAnnualTaxDto.prototype, "rows", void 0);
 //# sourceMappingURL=trader.dto.js.map

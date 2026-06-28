@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsOptional, IsArray, ArrayMinSize, ArrayMaxSize, ValidateNested, IsIn, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsArray, ArrayMinSize, ArrayMaxSize, ValidateNested, IsIn, IsDateString, IsNumber, IsInt } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export const TRADER_STATUSES = ['draft', 'submitted', 'verified', 'active', 'suspended', 'closed'] as const;
@@ -177,4 +177,25 @@ export class BulkImportTradersDto {
   @ValidateNested({ each: true })
   @Type(() => CreateTraderDto)
   traders: CreateTraderDto[];
+}
+
+export class AnnualTaxImportRowDto {
+  @IsString()
+  tin: string;
+
+  @IsNumber()
+  amount: number;
+
+  @IsInt()
+  year: number;
+}
+
+export class BulkImportAnnualTaxDto {
+  @ApiProperty({ type: [AnnualTaxImportRowDto], description: 'Annual tax rows with TIN, Amount, and Year.' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => AnnualTaxImportRowDto)
+  rows: AnnualTaxImportRowDto[];
 }

@@ -42,6 +42,7 @@ import {
   ShieldCheck,
   PauseCircle,
   PlayCircle,
+  Pencil,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
@@ -69,6 +70,25 @@ const expiryRemainingText = (expiry?: string | null) => {
   if (days < 0) return `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`;
   if (days === 0) return 'Expires today';
   return `${days} day${days === 1 ? '' : 's'} remaining`;
+};
+
+const licenseLifecycleStatus = (license: any, traderStatus?: string | null) => {
+  if (traderStatus === 'suspended' || license?.status === 'suspended' || license?.status === 'Suspended') return 'Suspended';
+  if (!license?.expiryDate) return license?.status === 'active' || license?.status === 'issued' || license?.status === 'Active' ? 'Active' : 'Expired';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiryDate = new Date(license.expiryDate);
+  expiryDate.setHours(0, 0, 0, 0);
+  if (expiryDate < today) return 'Expired';
+  const days = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return days <= 30 ? 'Expiring Soon' : 'Active';
+};
+
+const licenseStatusVariant = (status: string) => {
+  if (status === 'Active') return 'default';
+  if (status === 'Suspended' || status === 'Expired') return 'destructive';
+  return 'secondary';
 };
 
 const emptyBusinessForm = {
@@ -105,9 +125,15 @@ export default function TraderDetailPage() {
   const [businessOpen, setBusinessOpen] = useState(false);
   const [businessSaving, setBusinessSaving] = useState(false);
   const [businessForm, setBusinessForm] = useState(emptyBusinessForm);
+  const [businessEditTarget, setBusinessEditTarget] = useState<any | null>(null);
   const [pausingLicense, setPausingLicense] = useState(false);
+  const [renewTarget, setRenewTarget] = useState<any | null>(null);
+  const [renewalYear, setRenewalYear] = useState(String(new Date().getFullYear()));
+  const [renewingLicense, setRenewingLicense] = useState(false);
   const canUpdateTrader = hasPermission('traders.update');
+  const canUpdateLicense = hasPermission('licenses.update');
   const canCreateBusiness = hasPermission('businesses.create');
+  const canUpdateBusiness = hasPermission('businesses.update');
   const canUpload = hasPermission('documents.create');
   const canDelete = hasPermission('documents.delete');
 
@@ -142,8 +168,7 @@ export default function TraderDetailPage() {
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString() : '-';
 
-  const businessLicenseCount =
-    trader.businesses?.reduce((n: number, b: any) => n + Math.max(b.licenses?.length ?? 0, 1), 0) ?? 0;
+  const businessLicenseCount = trader.businesses?.length ?? 0;
   const traderDocumentCount = trader.documents?.length ?? 0;
   const businessDocumentCount =
     trader.businesses?.reduce((n: number, b: any) => n + (b.documents?.length ?? 0), 0) ?? 0;
@@ -155,6 +180,7 @@ export default function TraderDetailPage() {
   };
 
   const openBusinessDialog = () => {
+    setBusinessEditTarget(null);
     setBusinessForm({
       name: '',
       type: trader.typeOfJob ?? '',
@@ -167,7 +193,21 @@ export default function TraderDetailPage() {
     setBusinessOpen(true);
   };
 
-  const createBusiness = async (e: React.FormEvent) => {
+  const openEditBusinessDialog = (business: any) => {
+    setBusinessEditTarget(business);
+    setBusinessForm({
+      name: business.name ?? '',
+      type: business.type ?? '',
+      businessArea: business.businessArea ?? '',
+      category: business.category ?? '',
+      address: business.address ?? '',
+      plateNumber: business.plateNumber ?? '',
+      associationType: business.associationType ?? '',
+    });
+    setBusinessOpen(true);
+  };
+
+  const saveBusiness = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     if (!businessForm.type.trim() || !businessForm.category.trim()) {
@@ -176,7 +216,7 @@ export default function TraderDetailPage() {
     }
     setBusinessSaving(true);
     try {
-      await api.businesses.create({
+      const payload = {
         traderId: id,
         name: businessForm.name.trim() || trader.fullName,
         type: businessForm.type.trim(),
@@ -188,9 +228,18 @@ export default function TraderDetailPage() {
         tin: trader.tin ?? undefined,
         phone: trader.phone ?? undefined,
         status: 'active',
+      };
+      if (businessEditTarget?.id) {
+        await api.businesses.update(businessEditTarget.id, payload);
+      } else {
+        await api.businesses.create(payload);
+      }
+      toast({
+        title: businessEditTarget ? 'Business updated' : 'Business added',
+        description: businessEditTarget ? 'Business details were updated.' : 'A business was added and its license was generated automatically.',
       });
-      toast({ title: 'Business license added', description: 'Licensed business was added to this trader.' });
       setBusinessOpen(false);
+      setBusinessEditTarget(null);
       await refresh();
     } catch (err) {
       toast({ title: 'Error', description: (err as Error).message, variant: 'destructive' });
@@ -213,6 +262,38 @@ export default function TraderDetailPage() {
       toast({ title: 'Error', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setPausingLicense(false);
+    }
+  };
+
+  const defaultRenewalYearFor = (license: any) => {
+    const currentYear = new Date().getFullYear();
+    const expiryYear = license?.expiryDate ? new Date(license.expiryDate).getFullYear() : currentYear;
+    const isCurrentYearActive = licenseLifecycleStatus(license, trader.status) === 'Active' && expiryYear === currentYear;
+    return String(isCurrentYearActive ? currentYear + 1 : currentYear);
+  };
+
+  const openRenewDialog = (license: any) => {
+    setRenewTarget(license);
+    setRenewalYear(defaultRenewalYearFor(license));
+  };
+
+  const renewLicense = async () => {
+    if (!renewTarget?.id) return;
+    const year = Number.parseInt(renewalYear, 10);
+    if (!Number.isInteger(year) || year < 1900 || year > 2200) {
+      toast({ title: 'Invalid renewal year', description: 'Enter a valid year between 1900 and 2200.', variant: 'destructive' });
+      return;
+    }
+    setRenewingLicense(true);
+    try {
+      await api.licenses.renew(renewTarget.id, year);
+      toast({ title: 'License renewed', description: `The license was renewed for ${year} and set to Active.` });
+      setRenewTarget(null);
+      await refresh();
+    } catch (err) {
+      toast({ title: 'Renewal failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setRenewingLicense(false);
     }
   };
 
@@ -415,7 +496,7 @@ export default function TraderDetailPage() {
         <TabsList>
           <TabsTrigger value="business-license">
             <Briefcase className="h-4 w-4 mr-2" /> Business License (
-            {trader.businesses?.reduce((n: number, b: any) => n + Math.max(b.licenses?.length ?? 0, 1), 0) ?? 0}
+            {trader.businesses?.length ?? 0}
             )
           </TabsTrigger>
           <TabsTrigger value="documents">
@@ -431,7 +512,7 @@ export default function TraderDetailPage() {
               </div>
               {canCreateBusiness && (
                 <Button onClick={openBusinessDialog}>
-                  <Plus className="h-4 w-4 mr-2" /> Add licensed business
+                  <Plus className="h-4 w-4 mr-2" /> Add business
                 </Button>
               )}
             </CardHeader>
@@ -439,7 +520,7 @@ export default function TraderDetailPage() {
               {trader.businesses?.length ? (
                 <div className="grid gap-4">
                   {trader.businesses.map((b: any) => {
-                    const licenses = b.licenses?.length ? b.licenses : [null];
+                    const license = b.licenses?.[0] ?? null;
                     return (
                       <div
                         key={b.id}
@@ -454,9 +535,12 @@ export default function TraderDetailPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">{displayValue(b.tradeName || b.type)} · {displayValue(b.category)}</p>
                           </div>
-                          {/* <Button variant="outline" size="sm" onClick={() => navigate(`/businesses?traderId=${trader.id}`)}>
-                            View business
-                          </Button> */}
+                          {(canUpdateBusiness || canUpdateLicense) && (
+                            <Button variant="outline" size="sm" onClick={() => openEditBusinessDialog(b)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit business
+                            </Button>
+                          )}
                         </div>
 
                         <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
@@ -496,35 +580,43 @@ export default function TraderDetailPage() {
 
                         <div className="mt-4 space-y-2">
                           <div className="flex items-center gap-2 text-sm font-semibold">
-                            <ShieldCheck className="h-4 w-4 text-[hsl(var(--app-flow-accent))]" /> Licenses
+                            <ShieldCheck className="h-4 w-4 text-[hsl(var(--app-flow-accent))]" /> License
                           </div>
                           <div className="grid gap-2 md:grid-cols-2">
-                            {licenses.map((l: any, idx: number) => (
-                              <div key={l?.id ?? `${b.id}-license-${idx}`} className="rounded-xl border bg-background p-3 text-sm">
-                                {l ? (
+                            <div className="rounded-xl border bg-background p-3 text-sm md:col-span-2">
+                              {license ? (
+                                <div className="space-y-3">
                                   <div className="grid gap-2 sm:grid-cols-2">
                                     <div>
                                       <span className="text-muted-foreground">License #</span>
-                                      <p className="font-medium">{displayValue(l.licenseNo ?? l.licenseNumber)}</p>
+                                      <p className="font-medium">{displayValue(license.licenseNo ?? license.licenseNumber)}</p>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Status</span>
-                                      <p><Badge variant={l.status === 'issued' ? 'default' : 'secondary'}>{l.status}</Badge></p>
+                                      <p><Badge variant={licenseStatusVariant(licenseLifecycleStatus(license, trader.status))}>{licenseLifecycleStatus(license, trader.status)}</Badge></p>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Type</span>
-                                      <p className="font-medium">{displayValue(l.type ?? l.licenseType)}</p>
+                                      <p className="font-medium">{displayValue(license.type ?? license.licenseType)}</p>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Issue / Expiry</span>
-                                      <p className="font-medium">{formatDate(l.issueDate)} - {formatDate(l.expiryDate)}</p>
+                                      <p className="font-medium">{formatDate(license.issueDate)} - {formatDate(license.expiryDate)}</p>
                                     </div>
                                   </div>
-                                ) : (
-                                  <p className="text-muted-foreground">No license record attached yet.</p>
-                                )}
-                              </div>
-                            ))}
+                                  {canUpdateLicense && (
+                                    <Button type="button" variant="outline" size="sm" onClick={() => openRenewDialog(license)}>
+                                      <ShieldCheck className="h-4 w-4 mr-2" />
+                                      Renew License
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-muted-foreground">
+                                  No license record attached yet. Missing licenses are created automatically during data migration or when this business is saved.
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -538,15 +630,22 @@ export default function TraderDetailPage() {
           </Card>
         </TabsContent>
 
-        <Dialog open={businessOpen} onOpenChange={(open) => !businessSaving && setBusinessOpen(open)}>
+        <Dialog
+          open={businessOpen}
+          onOpenChange={(open) => {
+            if (businessSaving) return;
+            setBusinessOpen(open);
+            if (!open) setBusinessEditTarget(null);
+          }}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add licensed business</DialogTitle>
+              <DialogTitle>{businessEditTarget ? 'Edit business' : 'Add business'}</DialogTitle>
               <DialogDescription>
-                Add another business license for this trader. Leave business name empty if it is the same as the trader name.
+                Manage business details from the trader profile. A license is generated and attached automatically.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={createBusiness} className="space-y-4">
+            <form onSubmit={saveBusiness} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <Label>Business name</Label>
@@ -604,8 +703,8 @@ export default function TraderDetailPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={businessSaving}>
-                  {businessSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                  Add business
+                  {businessSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : businessEditTarget ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                  {businessEditTarget ? 'Save changes' : 'Add business'}
                 </Button>
               </DialogFooter>
             </form>
@@ -768,6 +867,36 @@ export default function TraderDetailPage() {
           </Dialog>
         </TabsContent>
       </Tabs>
+      <Dialog open={!!renewTarget} onOpenChange={(open) => !open && !renewingLicense && setRenewTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renew License</DialogTitle>
+            <DialogDescription>
+              Confirm the renewal year for license {displayValue(renewTarget?.licenseNo ?? renewTarget?.licenseNumber)}. The license will be set to Active.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="renewal-year">Renewal year</Label>
+            <Input
+              id="renewal-year"
+              type="number"
+              min={1900}
+              max={2200}
+              value={renewalYear}
+              onChange={(e) => setRenewalYear(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRenewTarget(null)} disabled={renewingLicense}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={renewLicense} disabled={renewingLicense}>
+              {renewingLicense && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm renewal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );

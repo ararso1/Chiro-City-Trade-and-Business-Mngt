@@ -1,3 +1,4 @@
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 import { FiscalYearService } from '../fiscal-year/fiscal-year.service';
@@ -40,13 +41,15 @@ export declare class TradersService {
         skip?: number;
         take?: number;
     }): Promise<{
-        items: ({
+        items: {
+            licenseStatus: string;
+            annualTaxAmount: number | null;
+            annualTaxYear: number;
             businesses: {
                 id: string;
                 name: string;
                 status: string;
             }[];
-        } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
@@ -70,7 +73,7 @@ export declare class TradersService {
             approvedById: string | null;
             mesobRef: string | null;
             licenseExpiryDate: Date | null;
-        })[];
+        }[];
         total: number;
     }>;
     getFilterOptions(): Promise<{
@@ -85,12 +88,12 @@ export declare class TradersService {
                 createdAt: Date;
                 updatedAt: Date;
                 status: string;
+                expiryDate: Date | null;
                 traderId: string;
-                licenseNo: string;
                 businessId: string;
+                licenseNo: string;
                 licenseType: string | null;
                 issueDate: Date | null;
-                expiryDate: Date | null;
                 qrCode: string | null;
                 issuedById: string | null;
                 renewalReminderSent: boolean;
@@ -141,21 +144,21 @@ export declare class TradersService {
                     description: string | null;
                     updatedAt: Date;
                     isActive: boolean;
-                    amount: import("@prisma/client/runtime/library").Decimal;
+                    amount: Decimal;
                     isPercent: boolean;
                 } | null;
             } & {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                amount: import("@prisma/client/runtime/library").Decimal;
+                amount: Decimal;
                 status: string;
+                year: number;
                 paidAt: Date | null;
+                period: string | null;
                 businessId: string;
                 taxTypeId: string | null;
                 currency: string;
-                year: number;
-                period: string | null;
                 reference: string | null;
                 notes: string | null;
             })[];
@@ -261,6 +264,16 @@ export declare class TradersService {
         created: number;
         failed: {
             index: number;
+            error: string;
+        }[];
+        total: number;
+    }>;
+    bulkImportAnnualTax(rows: unknown[]): Promise<{
+        imported: number;
+        updated: number;
+        failed: {
+            index: number;
+            tin?: string;
             error: string;
         }[];
         total: number;

@@ -26,6 +26,30 @@ export class NotificationsService {
     return raw.length > 160 ? raw.slice(0, 160) : raw;
   }
 
+  private formatMoney(value?: number | null) {
+    if (value == null || !Number.isFinite(value)) return 'not set';
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+  }
+
+  private renderTraderMessage(
+    template: string | undefined,
+    trader: {
+      tin?: string | null;
+      businesses?: { payments?: { amount: Decimal; year: number }[] }[];
+    },
+  ) {
+    if (!template) return undefined;
+    const latestAnnualTax = trader.businesses
+      ?.flatMap((business) => business.payments ?? [])
+      .sort((a, b) => b.year - a.year)[0];
+    const amount = latestAnnualTax ? Number(latestAnnualTax.amount) : null;
+    const year = latestAnnualTax?.year ?? new Date().getFullYear();
+    return template
+      .replace(/\{\{\s*TIN\s*\}\}/gi, trader.tin || 'N/A')
+      .replace(/\{\{\s*AMOUNT\s*\}\}/gi, this.formatMoney(amount))
+      .replace(/\{\{\s*YEAR\s*\}\}/gi, String(year));
+  }
+
   private async sendSms(msisdn: string, text: string): Promise<{ ok: boolean; response?: unknown; error?: string }> {
     const apiKey = this.configService.get<string>('SMS_ETHIOPIA_API_KEY');
     const baseUrl = this.configService.get<string>('SMS_ETHIOPIA_BASE_URL') || 'https://smsethiopia.et/api';
@@ -77,6 +101,9 @@ export class NotificationsService {
   }) {
     const where: any = { status: { not: 'closed' } };
     if (!filters) return where;
+    const addAnd = (condition: any) => {
+      where.AND = [...(where.AND ?? []), condition];
+    };
 
     const values = (value?: string | string[]) =>
       (Array.isArray(value) ? value : String(value ?? '').split(','))
@@ -100,11 +127,49 @@ export class NotificationsService {
     if (addresses.length) {
       where.address = { in: addresses };
     }
-    if (licenseStates.includes('paused')) {
-      where.status = 'suspended';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const soon = new Date(today);
+    soon.setDate(soon.getDate() + 30);
+    const notSuspendedLicense = { status: { notIn: ['Suspended', 'suspended'] } };
+    if (licenseStates.includes('suspended') || licenseStates.includes('paused')) {
+      addAnd({
+        OR: [
+          { status: 'suspended' },
+          { businesses: { some: { licenses: { some: { status: { in: ['Suspended', 'suspended'] } } } } } },
+        ],
+      });
     }
     if (licenseStates.includes('expired')) {
-      where.licenseExpiryDate = { lt: new Date() };
+      addAnd({
+        status: { not: 'suspended' },
+        businesses: { some: { licenses: { some: { ...notSuspendedLicense, expiryDate: { lt: today } } } } },
+      });
+    }
+    if (licenseStates.includes('expiring_soon')) {
+      addAnd({
+        status: { not: 'suspended' },
+        businesses: { some: { licenses: { some: { ...notSuspendedLicense, expiryDate: { gte: today, lte: soon } } } } },
+      });
+    }
+    if (licenseStates.includes('active')) {
+      addAnd({
+        status: { not: 'suspended' },
+        businesses: {
+          some: {
+            licenses: {
+              some: {
+                ...notSuspendedLicense,
+                OR: [
+                  { status: { in: ['Active', 'active', 'issued'] } },
+                  { expiryDate: null },
+                  { expiryDate: { gte: today } },
+                ],
+              },
+            },
+          },
+        },
+      });
     }
     if (licenseStates.includes('renewed_this_year')) {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);
@@ -304,7 +369,23 @@ export class NotificationsService {
   }) {
     const traders = await this.prisma.trader.findMany({
       where: this.buildTraderTargetWhere(data.targetFilters),
-      select: { id: true, fullName: true, email: true, phone: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        tin: true,
+        businesses: {
+          select: {
+            payments: {
+              where: { period: 'annual' },
+              select: { amount: true, year: true },
+              orderBy: { year: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
     });
     const metadata: Record<string, unknown> = {
       sendSms: data.channels.sms ?? false,
@@ -322,23 +403,39 @@ export class NotificationsService {
     let smsSent = 0;
     let smsFailed = 0;
     for (const trader of traders) {
+      const traderBody =
+        data.type === 'tax_reminder'
+          ? this.renderTraderMessage(data.body, trader)
+          : data.body;
+      const latestAnnualTax = trader.businesses
+        .flatMap((business) => business.payments)
+        .sort((a, b) => b.year - a.year)[0];
       if (inApp) {
         await this.prisma.notification.create({
           data: {
             traderId: trader.id,
             type: data.type,
             title: data.title,
-            body: data.body ?? null,
+            body: traderBody ?? null,
             channel: 'in_app',
-            amount: data.amount != null ? new Decimal(data.amount) : undefined,
-            metadata: metadata as any,
+            amount:
+              data.amount != null
+                ? new Decimal(data.amount)
+                : latestAnnualTax
+                  ? latestAnnualTax.amount
+                  : undefined,
+            metadata: {
+              ...(metadata as any),
+              annualTaxAmount: latestAnnualTax ? Number(latestAnnualTax.amount) : null,
+              annualTaxYear: latestAnnualTax?.year ?? null,
+            } as any,
           } as any,
         });
         created++;
       }
       if (data.channels.sms && trader.phone) {
         const msisdn = this.normalizeMsisdn(trader.phone);
-        const smsText = this.buildSmsText(data.title, data.body);
+        const smsText = this.buildSmsText(data.title, traderBody);
         const smsResult = msisdn
           ? await this.sendSms(msisdn, smsText)
           : { ok: false as const, error: 'Invalid phone format for Ethiopia SMS' };
@@ -352,10 +449,18 @@ export class NotificationsService {
             traderId: trader.id,
             type: data.type,
             title: data.title,
-            body: data.body ?? null,
+            body: traderBody ?? null,
             channel: 'sms',
+            amount:
+              data.amount != null
+                ? new Decimal(data.amount)
+                : latestAnnualTax
+                  ? latestAnnualTax.amount
+                  : undefined,
             metadata: {
               ...(metadata as any),
+              annualTaxAmount: latestAnnualTax ? Number(latestAnnualTax.amount) : null,
+              annualTaxYear: latestAnnualTax?.year ?? null,
               smsProvider: 'sms_ethiopia',
               msisdn,
               smsStatus: smsResult.ok ? 'sent' : 'failed',
@@ -371,9 +476,19 @@ export class NotificationsService {
             traderId: trader.id,
             type: data.type,
             title: data.title,
-            body: data.body ?? null,
+            body: traderBody ?? null,
             channel: 'email',
-            metadata: metadata as any,
+            amount:
+              data.amount != null
+                ? new Decimal(data.amount)
+                : latestAnnualTax
+                  ? latestAnnualTax.amount
+                  : undefined,
+            metadata: {
+              ...(metadata as any),
+              annualTaxAmount: latestAnnualTax ? Number(latestAnnualTax.amount) : null,
+              annualTaxYear: latestAnnualTax?.year ?? null,
+            } as any,
           } as any,
         });
         created++;

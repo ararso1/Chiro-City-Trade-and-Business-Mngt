@@ -1,4 +1,4 @@
-export declare const LICENSE_STATUSES: readonly ["application", "review", "approval", "issued", "renew", "expired"];
+export declare const LICENSE_STATUSES: readonly ["Active", "Expired", "Expiring Soon", "Suspended"];
 export declare class CreateLicenseDto {
     businessId: string;
     traderId: string;

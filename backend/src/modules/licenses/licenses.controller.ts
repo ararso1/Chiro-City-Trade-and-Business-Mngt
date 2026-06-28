@@ -48,10 +48,16 @@ export class LicensesController {
   @RequirePermissions('licenses.update', '*')
   update(@Param('id') id: string, @Body() dto: UpdateLicenseDto, @CurrentUser('sub') userId?: string) {
     const payload = { ...dto };
-    if (dto.status === 'issued' && !dto.issuedById && userId) {
+    if ((dto.status === 'issued' || dto.status?.toLowerCase() === 'active') && !dto.issuedById && userId) {
       (payload as any).issuedById = userId;
     }
     return this.licenses.update(id, payload);
+  }
+
+  @Post(':id/renew')
+  @RequirePermissions('licenses.update', '*')
+  renew(@Param('id') id: string, @Body() body: { year: number }, @CurrentUser('sub') userId?: string) {
+    return this.licenses.renew(id, Number(body.year), userId);
   }
 
   @Delete(':id')

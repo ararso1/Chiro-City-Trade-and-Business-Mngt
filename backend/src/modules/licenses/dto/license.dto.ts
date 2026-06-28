@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export const LICENSE_STATUSES = ['application', 'review', 'approval', 'issued', 'renew', 'expired'] as const;
+export const LICENSE_STATUSES = ['Active', 'Expired', 'Expiring Soon', 'Suspended'] as const;
 
 export class CreateLicenseDto {
   @IsString()

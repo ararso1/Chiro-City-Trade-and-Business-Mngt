@@ -8,6 +8,8 @@ export declare class NotificationsService {
     constructor(prisma: PrismaService, configService: ConfigService);
     private normalizeMsisdn;
     private buildSmsText;
+    private formatMoney;
+    private renderTraderMessage;
     private sendSms;
     private buildTraderTargetWhere;
     create(data: {
