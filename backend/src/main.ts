@@ -12,7 +12,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.enableCors({ origin: true, credentials: true });
+  app.enableCors({ origin: process.env.NODE_ENV === 'production' ? (process.env.CORS_ORIGINS || '').split(',').filter(Boolean) : true, credentials: true });
 
   const config = new DocumentBuilder()
     .setTitle('Chiro City Trade Management API')

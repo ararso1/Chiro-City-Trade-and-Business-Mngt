@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid email or password. Try: admin@chirocity.com / password123",
+          description: "Invalid email or password.",
           variant: "destructive"
         });
       }
@@ -88,13 +88,6 @@ const LoginPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6" data-id="1mt5nb4b9" data-path="src/pages/LoginPage.tsx">
-            {/* Demo Credentials */}
-            <div className="bg-blue-50 p-3 rounded-lg text-sm" data-id="vd6ukug4y" data-path="src/pages/LoginPage.tsx">
-              <p className="font-medium text-blue-800 mb-1">Demo credentials</p>
-              <p className="text-blue-700">Email: admin@chirocity.com</p>
-              <p className="text-blue-700">Password: password123</p>
-            </div>
-
             <form onSubmit={handleLogin} className="space-y-4" data-id="1x51ohzy6" data-path="src/pages/LoginPage.tsx">
               <div className="space-y-2" data-id="oc9bic79t" data-path="src/pages/LoginPage.tsx">
                 <Label htmlFor="email" data-id="ak6ipegz9" data-path="src/pages/LoginPage.tsx">Email</Label>

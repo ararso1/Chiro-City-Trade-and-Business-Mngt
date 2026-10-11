@@ -1,0 +1,56 @@
+name: cctbm
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cctbm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: cctbm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cctbm -d cctbm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  cctbm-api:
+    build: ./backend
+    image: cctbm-api:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://cctbm:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/cctbm?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      JWT_EXPIRES_SEC: 604800
+      CORS_ORIGINS: https://cctbm.chirocity.gov.et
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 12
+  cctbm-web:
+    image: cctbm-web:local
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: https://cctbm-api.chirocity.gov.et
+    restart: unless-stopped
+    depends_on:
+      cctbm-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+volumes:
+  postgres_data:
+  uploads_data:

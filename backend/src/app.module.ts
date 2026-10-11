@@ -1,3 +1,4 @@
+import { HealthController } from './health.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
@@ -16,6 +17,7 @@ import { MesobModule } from './modules/mesob/mesob.module';
 import { FiscalYearModule } from './modules/fiscal-year/fiscal-year.module';
 
 @Module({
+ controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,

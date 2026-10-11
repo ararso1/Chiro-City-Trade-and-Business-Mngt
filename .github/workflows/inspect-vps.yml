@@ -1,0 +1,58 @@
+name: Inspect Chiro-City-Trade-and-Business-Mngt VPS
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [inspect]
+        default: inspect
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPERATION: ${{ inputs.operation }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: OPERATION
+          script: |
+            set -eu
+            df -h /var /
+            docker ps --format '{{.Names}} {{.Status}}'
+            for path in /var/www/Chiro-City-Trade-and-Business-Mngt /var/www/Chiro-City-Trade-and-Business-Mngt/Chiro-City-Trade-and-Business-Mngt; do
+              if [ -d "$path/.git" ]; then
+                echo "Chiro-City-Trade-and-Business-Mngt clone: $path"
+                git -C "$path" remote -v
+                git -C "$path" status --short
+                if [ -f "$path/.env" ]; then echo 'Root production .env exists'; fi
+              fi
+            done
+            docker ps --format '{{.Names}} {{.Image}} {{.Ports}}'
+            docker inspect --format '{{.Name}} networks={{json .NetworkSettings.Networks}}' hrms-proxy-1
+            if docker inspect cctbm-cctbm-api-1 >/dev/null 2>&1; then
+              cd /var/www/Chiro-City-Trade-and-Business-Mngt
+              export ADMIN_EMAIL="$(sed -n 's/^ADMIN_EMAIL=//p' .env | tr -d '\r')"
+              export ADMIN_PASSWORD="$(sed -n 's/^ADMIN_PASSWORD=//p' .env | tr -d '\r')"
+              docker exec -i -e ADMIN_EMAIL -e ADMIN_PASSWORD cctbm-cctbm-api-1 node <<'NODE'
+            (async () => {
+              const response = await fetch('http://127.0.0.1:3003/auth/login', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }),
+              });
+              if (!response.ok) throw new Error('Administrator login failed: HTTP ' + response.status);
+              const data = await response.json();
+              const me = await fetch('http://127.0.0.1:3003/auth/profile', {
+                headers: { Authorization: 'Bearer ' + data.access_token },
+              });
+              if (!me.ok) throw new Error('Authenticated profile failed: HTTP ' + me.status);
+              console.log('Administrator login and authenticated profile passed.');
+            })().catch(error => { console.error(error.message); process.exitCode = 1; });
+            NODE
+              unset ADMIN_EMAIL ADMIN_PASSWORD
+            fi

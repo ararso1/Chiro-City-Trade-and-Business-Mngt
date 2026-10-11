@@ -1,0 +1,15 @@
+services:
+  cctbm-api:
+    networks:
+      default: {}
+      edge:
+        aliases: [cctbm-api]
+  cctbm-web:
+    networks:
+      default: {}
+      edge:
+        aliases: [cctbm-web]
+networks:
+  edge:
+    external: true
+    name: chirocity_edge
