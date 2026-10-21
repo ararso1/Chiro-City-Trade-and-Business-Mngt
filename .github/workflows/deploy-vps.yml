@@ -15,6 +15,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify central authentication
+        run: |
+          cd backend
+          npm ci
+          npx prisma generate
+          npm run test:auth
       - name: Verify containers, migrations and health
         env:
           DEPLOY_DOMAINS: '0'
@@ -45,6 +54,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           fingerprint: ${{ secrets.VPS_SSH_FINGERPRINT }}
+          timeout: 120s
+          command_timeout: 20m
           source: cctbm-images.tar.gz
           target: /tmp/cctbm-release-${{ github.sha }}
       - uses: appleboy/ssh-action@v1.2.0

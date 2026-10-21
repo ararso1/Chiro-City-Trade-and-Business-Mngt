@@ -47,6 +47,8 @@ model User {
   roleId        String
   role          Role      @relation(fields: [roleId], references: [id])
   isActive      Boolean   @default(true)
+  keycloakSub String? @unique @map("keycloak_sub")
+  keycloakIssuer String? @map("keycloak_issuer")
   mesobUserId  String?   // MESOB system user reference
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

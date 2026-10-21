@@ -1,3 +1,5 @@
+import ChiroSignIn from './ChiroSignIn';
+import { isCentralAuth, signIn } from '@/services/chiroAuth';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +15,8 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, loginWithSSO } = useAuth();
+  const { login } = useAuth();
+  const loginWithSSO = async (_provider: string) => { await signIn(); return false; };
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -77,7 +80,7 @@ const LoginPage: React.FC = () => {
             <Building2 className="h-8 w-8 text-white" data-id="famyievx9" data-path="src/pages/LoginPage.tsx" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Chiro City Trade</h1>
-          <p className="text-gray-600 mt-2">Trader & Business Management — Sign in</p>
+          <p className="text-gray-600 mt-2">Trader & Business Management â€” Sign in</p>
         </div>
 
         <Card className="shadow-lg" data-id="nn7m6b787" data-path="src/pages/LoginPage.tsx">
@@ -168,11 +171,11 @@ const LoginPage: React.FC = () => {
 
         {/* Additional Info */}
         <div className="text-center text-xs text-gray-500" data-id="7bfqzi4e3" data-path="src/pages/LoginPage.tsx">
-          <p>© Chiro City Trade Management. Powered by Damina Tech.</p>
+          <p>Â© Chiro City Trade Management. Powered by Damina Tech.</p>
         </div>
       </div>
     </div>);
 
 };
 
-export default LoginPage;
+export default function Login() { return isCentralAuth() ? <ChiroSignIn /> : <LoginPage />; }

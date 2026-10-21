@@ -1,0 +1,57 @@
+name: Activate CCTBM Chiro Auth
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cctbm-production
+  cancel-in-progress: false
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 10m
+          script: |
+            set -eu
+            cd "${{ secrets.VPS_APP_DIR || '/var/www/Chiro-City-Trade-and-Business-Mngt' }}"
+            compose() { docker compose --env-file .env -f docker-compose.yml -f docker-compose.domains.yml "$@"; }
+            compose exec -T cctbm-api npx prisma migrate status
+            compose exec -T -e LINK_EMAIL=cctbm@chirocity.gov.et -e LINK_SUBJECT=783bff22-e55e-4c8d-b6db-cd9884823ea0 cctbm-api node scripts/link-keycloak-user.cjs
+            mkdir -p /srv/cctbm-backups
+            chmod 700 /srv/cctbm-backups
+            backup="/srv/cctbm-backups/env-before-auth-$(date +%Y%m%d-%H%M%S)"
+            cp .env "$backup"
+            chmod 600 "$backup"
+            rollback() {
+              cp "$backup" .env
+              chmod 600 .env
+              compose up -d --no-build --wait --wait-timeout 180 cctbm-api cctbm-web || true
+            }
+            trap rollback EXIT
+            python3 - <<'PY'
+            from pathlib import Path
+            p=Path('.env')
+            updates={'AUTH_MODE':'keycloak','KEYCLOAK_URL':'https://auth.chirocity.gov.et','KEYCLOAK_REALM':'chirocity','KEYCLOAK_CLIENT_ID':'cctbm-web','KEYCLOAK_AUDIENCE':'cctbm-api'}
+            lines=p.read_text().splitlines()
+            lines=[line for line in lines if line.split('=',1)[0] not in updates]
+            p.write_text('\n'.join(lines+[k+'='+v for k,v in updates.items()])+'\n')
+            p.chmod(0o600)
+            PY
+            compose up -d --no-build --wait --wait-timeout 180 cctbm-api cctbm-web
+            compose exec -T cctbm-api node <<'JS'
+            (async()=>{
+              const data=await (await fetch('http://127.0.0.1:3003/auth/config')).json();
+              if(data.mode!=='keycloak' || data.clientId!=='cctbm-web')throw new Error('Activation failed');
+              const local=await fetch('http://127.0.0.1:3003/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'nobody@example.com',password:'invalid-probe-123'})});
+              if(local.status!==403)throw new Error('Local login probe returned HTTP '+local.status+': '+await local.text());
+              console.log('Central sign-in active:',data);
+            })().catch(e=>{console.error(e.message);process.exitCode=1});
+            JS
+            curl --fail --retry 3 https://cctbm-api.chirocity.gov.et/auth/config
+            trap - EXIT

@@ -109,7 +109,7 @@ export default function ArchivePage() {
 
   const downloadTraderDoc = async (docId: string, suggestedName?: string) => {
     const base = getApiBase();
-    const token = getAuthToken();
+    const token = await getAuthToken();
     const res = await fetch(`${base}/documents/trader-doc/${docId}/download`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
@@ -326,8 +326,8 @@ export default function ArchivePage() {
                     <div className="min-w-0">
                       <div className="font-medium truncate">{d.name}</div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {d.trader?.fullName ? `${d.trader.fullName} · ` : ''}{d.type}
-                        {d.sizeBytes ? ` · ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
+                        {d.trader?.fullName ? `${d.trader.fullName} Â· ` : ''}{d.type}
+                        {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -369,7 +369,7 @@ export default function ArchivePage() {
             <div>
               <CardTitle>Document list</CardTitle>
               <CardDescription>
-                Scope: <span className="font-medium text-foreground">{scope}</span> · Total: <span className="font-medium text-foreground">{total}</span>
+                Scope: <span className="font-medium text-foreground">{scope}</span> Â· Total: <span className="font-medium text-foreground">{total}</span>
               </CardDescription>
             </div>
             <Select value={scope} onValueChange={(v) => setScope(v as any)}>
@@ -397,8 +397,8 @@ export default function ArchivePage() {
                   <div className="min-w-0">
                     <div className="font-medium truncate">{d.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {scope === 'trader' ? d.trader?.fullName : d.business?.name} · {d.type}
-                      {d.sizeBytes ? ` · ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
+                      {scope === 'trader' ? d.trader?.fullName : d.business?.name} Â· {d.type}
+                      {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -429,7 +429,7 @@ export default function ArchivePage() {
                           if (scope === 'trader') await downloadTraderDoc(d.id, d.name);
                           else {
                             const base = getApiBase();
-                            const token = getAuthToken();
+                            const token = await getAuthToken();
                             const res = await fetch(`${base}/documents/business-doc/${d.id}/download`, {
                               headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                             });

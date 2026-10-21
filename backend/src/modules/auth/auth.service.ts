@@ -1,5 +1,6 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { authConfig } from './auth.config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -26,6 +27,7 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
+    if(authConfig().mode==='keycloak') throw new ForbiddenException('Use Chiro Auth to sign in.');
     const user = await this.validateUser(email, password);
     if (!user) throw new UnauthorizedException('Invalid email or password');
     const payload = { sub: user.id, email: user.email, role: user.role.name };
@@ -54,7 +56,7 @@ export class AuthService {
         },
       },
     });
-    if (!user) return null;
+    if (!user || !user.isActive) throw new UnauthorizedException();
     const permissions = user.role.rolePermissions.map((rp) => rp.permission.code);
     return {
       id: user.id,

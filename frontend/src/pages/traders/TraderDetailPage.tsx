@@ -1,3 +1,4 @@
+import { getAuthToken } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -301,7 +302,7 @@ export default function TraderDetailPage() {
     try {
       // reuse api base + token via Archive pattern (simple fetch with auth header)
       const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
-      const token = localStorage.getItem('chiro_trade_token');
+      const token = await getAuthToken();
       const res = await fetch(`${base}/documents/trader-doc/${docId}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
@@ -326,7 +327,7 @@ export default function TraderDetailPage() {
   const downloadBusinessDoc = async (docId: string, suggestedName?: string) => {
     try {
       const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
-      const token = localStorage.getItem('chiro_trade_token');
+      const token = await getAuthToken();
       const res = await fetch(`${base}/documents/business-doc/${docId}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
@@ -388,7 +389,7 @@ export default function TraderDetailPage() {
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{trader.fullName}</h1>
                     <p className="text-sm text-white/80">
-                      {[trader.phone, trader.tin].filter(Boolean).join(' · ') || 'Trader profile'}
+                      {[trader.phone, trader.tin].filter(Boolean).join(' Â· ') || 'Trader profile'}
                     </p>
                   </div>
                 </div>
@@ -533,7 +534,7 @@ export default function TraderDetailPage() {
                               <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>{b.status}</Badge>
                               {b.tin && <Badge variant="outline">TIN: {b.tin}</Badge>}
                             </div>
-                            <p className="text-sm text-muted-foreground">{displayValue(b.tradeName || b.type)} · {displayValue(b.category)}</p>
+                            <p className="text-sm text-muted-foreground">{displayValue(b.tradeName || b.type)} Â· {displayValue(b.category)}</p>
                           </div>
                           {(canUpdateBusiness || canUpdateLicense) && (
                             <Button variant="outline" size="sm" onClick={() => openEditBusinessDialog(b)}>
@@ -737,8 +738,8 @@ export default function TraderDetailPage() {
                           <div className="min-w-0">
                             <div className="font-medium truncate">{d.name}</div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {d.type} · {formatDate(d.uploadedAt)}
-                              {d.sizeBytes ? ` · ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
+                              {d.type} Â· {formatDate(d.uploadedAt)}
+                              {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -784,8 +785,8 @@ export default function TraderDetailPage() {
                             <div className="min-w-0">
                               <div className="font-medium truncate">{d.name}</div>
                               <div className="text-xs text-muted-foreground truncate">
-                                {b.name} · {d.type} · {formatDate(d.uploadedAt)}
-                                {d.sizeBytes ? ` · ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
+                                {b.name} Â· {d.type} Â· {formatDate(d.uploadedAt)}
+                                {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">

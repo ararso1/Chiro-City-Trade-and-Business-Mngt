@@ -22,6 +22,13 @@ compose() {
 diagnostics() { compose ps || true; compose logs --tail 80 postgres cctbm-api cctbm-web || true; }
 trap diagnostics ERR
 compose config --quiet
+if [ "${DEPLOY_DOMAINS:-1}" = 1 ] && compose ps --status running --services | grep -qx postgres; then
+  mkdir -p /srv/cctbm-backups
+  chmod 700 /srv/cctbm-backups
+  backup="/srv/cctbm-backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql"
+  (umask 077; compose exec -T postgres pg_dump -U cctbm -d cctbm > "$backup")
+  test -s "$backup"
+fi
 if [ "${SKIP_BUILD:-0}" != 1 ]; then compose build --pull; fi
 compose up -d --wait --wait-timeout 120 postgres
 compose run --rm --no-deps cctbm-api npx prisma migrate deploy

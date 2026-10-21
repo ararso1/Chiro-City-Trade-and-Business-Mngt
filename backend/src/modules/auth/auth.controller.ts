@@ -1,3 +1,4 @@
+import { authConfig } from './auth.config';
 import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -9,6 +10,9 @@ import { LoginDto } from './dto/login.dto';
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
+
+  @Get('config')
+  config() { const {issuer,audience,...settings}=authConfig(); return settings; }
 
   @Post('login')
   @ApiOperation({ summary: 'Login' })

@@ -1,3 +1,4 @@
+import { isCentralAuth, hasCentralSession, signIn, signOut } from '@/services/chiroAuth';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api, setAuthToken } from '@/services/api';
 
@@ -12,6 +13,7 @@ export interface User {
 }
 
 interface AuthContextType {
+  authError: string;
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -24,11 +26,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authError,setAuthError]=useState('');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshProfile = async () => {
-    const token = localStorage.getItem('chiro_trade_token');
+    const token = isCentralAuth() ? hasCentralSession() : localStorage.getItem('chiro_trade_token');
     if (!token) {
       setUser(null);
       setIsLoading(false);
@@ -43,7 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: profile.role as UserRole,
         permissions: profile.permissions ?? [],
       });
-    } catch {
+    } catch (error) {
+      setAuthError((error as Error).message);
       setAuthToken(null);
       setUser(null);
     } finally {
@@ -53,9 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     refreshProfile();
+    const clear=()=>{setUser(null);setIsLoading(false);};
+    window.addEventListener('cctbm:unauthorized',clear);
+    return ()=>window.removeEventListener('cctbm:unauthorized',clear);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    if(isCentralAuth()) { await signIn(); return false; }
     setIsLoading(true);
     try {
       const res = await api.auth.login(email, password);
@@ -78,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setAuthToken(null);
     setUser(null);
+    if(isCentralAuth()) void signOut();
   };
 
   const hasPermission = (permission: string): boolean => {
@@ -87,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const value: AuthContextType = {
+    authError,
     user,
     login,
     logout,

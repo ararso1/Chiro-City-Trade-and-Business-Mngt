@@ -36,8 +36,6 @@ export const useStore = create<RootState>()(
         {
           name: 'hr-management-store',
           partialize: (state) => ({
-            user: state.user,
-            isAuthenticated: state.isAuthenticated,
             notifications: state.notifications
           })
         }

@@ -2,6 +2,7 @@
  * Chiro City Trade Management API client.
  * Set VITE_API_BASE in .env (e.g. http://localhost:3003) or leave empty for same-origin.
  */
+import { isCentralAuth, accessToken } from './chiroAuth';
 const BASE = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
 
 function getToken(): string | null {
@@ -12,8 +13,8 @@ export function getApiBase(): string {
   return BASE;
 }
 
-export function getAuthToken(): string | null {
-  return getToken();
+export async function getAuthToken(): Promise<string | null> {
+  return isCentralAuth() ? accessToken() : getToken();
 }
 
 async function request<T>(
@@ -31,10 +32,11 @@ async function request<T>(
     'Content-Type': 'application/json',
     ...(init.headers as object),
   };
-  const token = getToken();
+  const token = await getAuthToken();
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   const res = await fetch(url.toString(), { ...init, headers });
   if (!res.ok) {
+    if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message || `HTTP ${res.status}`);
   }
@@ -156,7 +158,7 @@ export const api = {
     list: (params: { scope: 'trader' | 'business'; query?: string; type?: string; traderId?: string; businessId?: string; skip?: number; take?: number }) =>
       request<{ items: any[]; total: number }>('/documents/list', { params: params as any }),
     uploadTrader: async (traderId: string, body: { type: string; name?: string; file: File }) => {
-      const token = getToken();
+      const token = await getAuthToken();
       const fd = new FormData();
       fd.append('type', body.type);
       if (body.name) fd.append('name', body.name);
@@ -167,13 +169,14 @@ export const api = {
         body: fd,
       });
       if (!res.ok) {
+    if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
         const err = await res.json().catch(() => ({ message: res.statusText }));
         throw new Error(err.message || `HTTP ${res.status}`);
       }
       return res.json();
     },
     uploadBusiness: async (businessId: string, body: { type: string; name?: string; file: File }) => {
-      const token = getToken();
+      const token = await getAuthToken();
       const fd = new FormData();
       fd.append('type', body.type);
       if (body.name) fd.append('name', body.name);
@@ -184,6 +187,7 @@ export const api = {
         body: fd,
       });
       if (!res.ok) {
+    if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
         const err = await res.json().catch(() => ({ message: res.statusText }));
         throw new Error(err.message || `HTTP ${res.status}`);
       }

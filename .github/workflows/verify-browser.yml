@@ -1,0 +1,71 @@
+name: Verify live CCTBM browser login
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-audit --no-fund playwright-core
+      - name: Verify CCTBM renders and reaches Chiro Auth
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright-core');
+          (async () => {
+            const browser = await chromium.launch({ channel: 'chrome', args: ['--no-sandbox'] });
+            const page = await browser.newPage();
+            try {
+              const errors = [];
+              page.on('pageerror', error => { errors.push(error.message); console.log('PAGE ERROR', error.message); });
+              page.on('requestfailed', req => console.log('REQUEST FAILED', new URL(req.url()).origin + new URL(req.url()).pathname, req.failure()?.errorText));
+              page.on('console', msg => { if (msg.type() === 'error') console.log('BROWSER ERROR', msg.text()); });
+              await page.goto('https://cctbm.chirocity.gov.et/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
+              const login = page.getByRole('button', { name: 'Sign in with Chiro Auth' });
+              await login.waitFor({ timeout: 30000 });
+              console.log('CCTBM central login screen rendered.');
+              const config = await page.request.get('https://cctbm-api.chirocity.gov.et/auth/config');
+              const settings = await config.json();
+              if (settings.mode !== 'keycloak' || settings.clientId !== 'cctbm-web') throw new Error('Unexpected production auth settings');
+              const me = await page.request.get('https://cctbm-api.chirocity.gov.et/auth/profile');
+              if (me.status() !== 401) throw new Error('Anonymous identity request must be rejected');
+              const local = await page.request.post('https://cctbm-api.chirocity.gov.et/auth/login', { data: {email:'nobody@example.com',password:'invalid-probe-123'} });
+              if (local.status() !== 403) throw new Error('Local login is still enabled');
+              const tokenProbe = await page.request.post('https://auth.chirocity.gov.et/realms/chirocity/protocol/openid-connect/token', {
+                headers: { Origin: 'https://cctbm.chirocity.gov.et' },
+                form: { client_id: 'cctbm-web', grant_type: 'authorization_code', code: 'invalid-preflight-probe', redirect_uri: 'https://cctbm.chirocity.gov.et/login' }
+              });
+              if (tokenProbe.headers()['access-control-allow-origin'] !== 'https://cctbm.chirocity.gov.et') throw new Error('Keycloak token endpoint does not permit the CCTBM origin');
+              console.log('API protection and Keycloak CORS verified.');
+              for (const viewport of [{ width: 1920, height: 1080 }, { width: 768, height: 1024 }, { width: 375, height: 812 }]) {
+                await page.setViewportSize(viewport);
+                const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+                if (overflow) throw new Error('Auth layout overflows '+JSON.stringify(viewport));
+                console.log('Auth layout fits:', JSON.stringify(viewport));
+                await page.screenshot({ path: `cctbm-login-${viewport.width}.png`, fullPage: true });
+              }
+              await login.waitFor();
+              await login.click();
+              await page.waitForURL('https://auth.chirocity.gov.et/**', { timeout: 30000 });
+              await page.locator('#username').waitFor({ timeout: 30000 });
+              console.log('Chiro Auth username/password form reached.');
+              await page.screenshot({ path: 'chiro-auth-login.png' });
+              if (errors.length) throw new Error(errors.join('\n'));
+              console.log('No JavaScript runtime errors.');
+            } catch (error) {
+              console.log('Visible page:', (await page.locator('body').innerText()).slice(0, 1800));
+              await page.screenshot({ path: 'cctbm-failure.png' });
+              throw error;
+            } finally { await browser.close(); }
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cctbm-browser-check
+          path: '*.png'
+          retention-days: 1
