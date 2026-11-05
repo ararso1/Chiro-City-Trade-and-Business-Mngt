@@ -4,7 +4,7 @@ import { TradersService } from './traders.service';
 import { BulkImportAnnualTaxDto, BulkImportTradersDto, CreateTraderDto, UpdateTraderDto } from './dto/trader.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
-import { RequirePermissions } from '../auth/permissions.decorator';
+import { RequirePermissions, AnyPermissions } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('traders')
@@ -15,25 +15,25 @@ export class TradersController {
   constructor(private traders: TradersService) {}
 
   @Post()
-  @RequirePermissions('traders.create', '*')
+  @RequirePermissions('traders.create')
   create(@Body() dto: CreateTraderDto, @CurrentUser('sub') userId?: string) {
     return this.traders.create(dto, userId);
   }
 
   @Post('bulk-import')
-  @RequirePermissions('traders.create', '*')
+  @RequirePermissions('traders.create')
   bulkImport(@Body() body: BulkImportTradersDto, @CurrentUser('sub') userId?: string) {
     return this.traders.bulkImport(body.traders, userId);
   }
 
   @Post('annual-tax-import')
-  @RequirePermissions('payments.create', 'finance.write', '*')
+  @AnyPermissions('payments.create', 'finance.write')
   bulkImportAnnualTax(@Body() body: BulkImportAnnualTaxDto) {
     return this.traders.bulkImportAnnualTax(body.rows);
   }
 
   @Get()
-  @RequirePermissions('traders.read', '*')
+  @RequirePermissions('traders.read')
   findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
@@ -57,19 +57,19 @@ export class TradersController {
   }
 
   @Get('filter-options')
-  @RequirePermissions('traders.read', '*')
+  @RequirePermissions('traders.read')
   filterOptions() {
     return this.traders.getFilterOptions();
   }
 
   @Get(':id')
-  @RequirePermissions('traders.read', '*')
+  @RequirePermissions('traders.read')
   findOne(@Param('id') id: string) {
     return this.traders.findOne(id);
   }
 
   @Put(':id')
-  @RequirePermissions('traders.update', '*')
+  @RequirePermissions('traders.update')
   update(@Param('id') id: string, @Body() dto: UpdateTraderDto) {
     return this.traders.update(id, dto);
   }

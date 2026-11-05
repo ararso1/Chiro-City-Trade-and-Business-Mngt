@@ -24,7 +24,7 @@ export class FiscalYearController {
 
   @Put('config')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('*')
+  @RequirePermissions('fiscal-year.manage')
   setConfig(@Body() body: { calendarType?: 'EC' | 'GC'; activeFiscalYearId?: string | null }) {
     return this.fiscalYear.setConfig(
       body.calendarType ?? 'GC',
@@ -41,7 +41,7 @@ export class FiscalYearController {
 
   @Post()
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('*')
+  @RequirePermissions('fiscal-year.manage')
   create(
     @Body()
     body: {
@@ -60,7 +60,7 @@ export class FiscalYearController {
 
   @Put(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('*')
+  @RequirePermissions('fiscal-year.manage')
   update(
     @Param('id') id: string,
     @Body()
@@ -79,7 +79,7 @@ export class FiscalYearController {
 
   @Delete(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('*')
+  @RequirePermissions('fiscal-year.manage')
   delete(@Param('id') id: string) {
     return this.fiscalYear.deleteFiscalYear(id);
   }

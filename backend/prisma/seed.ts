@@ -1,3 +1,4 @@
+import { permissionNames } from '../src/modules/auth/permission-catalog';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -6,7 +7,6 @@ const prisma = new PrismaClient();
 async function main() {
   // Permissions
   const permissions = [
-    { code: '*', name: 'All permissions', module: 'system' },
     { code: 'dashboard.view', name: 'View dashboard', module: 'dashboard' },
     { code: 'traders.read', name: 'View traders', module: 'traders' },
     { code: 'traders.create', name: 'Create traders', module: 'traders' },
@@ -39,6 +39,7 @@ async function main() {
     { code: 'roles.read', name: 'View roles', module: 'users' },
     { code: 'permissions.read', name: 'View permissions', module: 'users' },
   ];
+  for(const code of permissionNames) if(!permissions.some(p=>p.code===code)) permissions.push({code,name:code,module:code.split('.')[0]});
   for (const p of permissions) {
     await prisma.permission.upsert({
       where: { code: p.code },
@@ -69,7 +70,7 @@ async function main() {
     update: {},
   });
 
-  const allPermIds = (await prisma.permission.findMany()).map((x) => x.id);
+  const allPermIds = (await prisma.permission.findMany({where:{code:{not:'*'}}})).map((x) => x.id);
   const adminPermIds = allPermIds;
   const officerPermIds = (await prisma.permission.findMany({
     where: {

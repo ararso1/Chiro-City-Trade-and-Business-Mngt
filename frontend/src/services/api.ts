@@ -38,7 +38,7 @@ async function request<T>(
   if (!res.ok) {
     if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    throw new Error((Array.isArray(err.message) ? err.message.join('\n') : err.message) || `HTTP ${res.status}`);
   }
   return res.json();
 }
@@ -171,7 +171,7 @@ export const api = {
       if (!res.ok) {
     if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
+        throw new Error((Array.isArray(err.message) ? err.message.join('\n') : err.message) || `HTTP ${res.status}`);
       }
       return res.json();
     },
@@ -189,7 +189,7 @@ export const api = {
       if (!res.ok) {
     if(res.status===401) window.dispatchEvent(new Event('cctbm:unauthorized'));
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
+        throw new Error((Array.isArray(err.message) ? err.message.join('\n') : err.message) || `HTTP ${res.status}`);
       }
       return res.json();
     },
@@ -280,3 +280,5 @@ export function setAuthToken(token: string | null) {
   if (token) localStorage.setItem('chiro_trade_token', token);
   else localStorage.removeItem('chiro_trade_token');
 }
+
+export { request as managementRequest };

@@ -13,13 +13,13 @@ export class ReportsController {
   constructor(private reports: ReportsService) {}
 
   @Get('dashboard')
-  @RequirePermissions('reports.read', 'dashboard.view', '*')
+  @RequirePermissions('dashboard.view')
   getDashboardStats() {
     return this.reports.getDashboardStats();
   }
 
   @Get('export-summary')
-  @RequirePermissions('reports.read', '*')
+  @RequirePermissions('reports.read')
   getExportSummary(@Query('from') from?: string, @Query('to') to?: string) {
     return this.reports.getExportSummary({
       from: from ? new Date(from) : undefined,

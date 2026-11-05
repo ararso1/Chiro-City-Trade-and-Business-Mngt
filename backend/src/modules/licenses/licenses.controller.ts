@@ -15,13 +15,13 @@ export class LicensesController {
   constructor(private licenses: LicensesService) {}
 
   @Post()
-  @RequirePermissions('licenses.create', '*')
+  @RequirePermissions('licenses.create')
   create(@Body() dto: CreateLicenseDto) {
     return this.licenses.create(dto);
   }
 
   @Get()
-  @RequirePermissions('licenses.read', '*')
+  @RequirePermissions('licenses.read')
   findAll(
     @Query('businessId') businessId?: string,
     @Query('traderId') traderId?: string,
@@ -39,13 +39,13 @@ export class LicensesController {
   }
 
   @Get(':id')
-  @RequirePermissions('licenses.read', '*')
+  @RequirePermissions('licenses.read')
   findOne(@Param('id') id: string) {
     return this.licenses.findOne(id);
   }
 
   @Put(':id')
-  @RequirePermissions('licenses.update', '*')
+  @RequirePermissions('licenses.update')
   update(@Param('id') id: string, @Body() dto: UpdateLicenseDto, @CurrentUser('sub') userId?: string) {
     const payload = { ...dto };
     if ((dto.status === 'issued' || dto.status?.toLowerCase() === 'active') && !dto.issuedById && userId) {
@@ -55,7 +55,7 @@ export class LicensesController {
   }
 
   @Post(':id/renew')
-  @RequirePermissions('licenses.update', '*')
+  @RequirePermissions('licenses.update')
   renew(@Param('id') id: string, @Body() body: { year: number }, @CurrentUser('sub') userId?: string) {
     return this.licenses.renew(id, Number(body.year), userId);
   }

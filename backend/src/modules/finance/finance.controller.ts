@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
-import { RequirePermissions } from '../auth/permissions.decorator';
+import { RequirePermissions, AnyPermissions } from '../auth/permissions.decorator';
 
 @ApiTags('finance')
 @ApiBearerAuth()
@@ -13,13 +13,13 @@ export class FinanceController {
   constructor(private finance: FinanceService) {}
 
   @Get('tax-types')
-  @RequirePermissions('payments.read', 'finance.read', '*')
+  @AnyPermissions('payments.read', 'finance.read')
   getTaxTypes() {
     return this.finance.getTaxTypes();
   }
 
   @Get('payments')
-  @RequirePermissions('payments.read', 'finance.read', '*')
+  @AnyPermissions('payments.read', 'finance.read')
   getPayments(
     @Query('businessId') businessId?: string,
     @Query('year') year?: string,
@@ -37,13 +37,13 @@ export class FinanceController {
   }
 
   @Get('revenue')
-  @RequirePermissions('payments.read', 'reports.read', '*')
+  @AnyPermissions('payments.read', 'reports.read')
   getRevenueSummary(@Query('year') year?: string) {
     return this.finance.getRevenueSummary(year ? parseInt(year, 10) : undefined);
   }
 
   @Post('payments')
-  @RequirePermissions('payments.create', 'finance.write', '*')
+  @AnyPermissions('payments.create', 'finance.write')
   recordPayment(
     @Body()
     body: {

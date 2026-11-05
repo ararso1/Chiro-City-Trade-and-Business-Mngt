@@ -1,3 +1,4 @@
+import { profile } from './access';
 import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { authConfig } from './auth.config';
@@ -32,7 +33,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid email or password');
     const payload = { sub: user.id, email: user.email, role: user.role.name };
     const access_token = this.jwt.sign(payload);
-    const permissions = user.role.rolePermissions.map((rp) => rp.permission.code);
+    const permissions = (await profile(this.prisma,user.id)).permissions;
     return {
       access_token,
       user: {
@@ -45,25 +46,5 @@ export class AuthService {
     };
   }
 
-  async getProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: {
-          include: {
-            rolePermissions: { include: { permission: true } },
-          },
-        },
-      },
-    });
-    if (!user || !user.isActive) throw new UnauthorizedException();
-    const permissions = user.role.rolePermissions.map((rp) => rp.permission.code);
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role.name,
-      permissions,
-    };
-  }
+  async getProfile(userId: string) {return profile(this.prisma,userId);}
 }

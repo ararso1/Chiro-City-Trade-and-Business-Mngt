@@ -13,13 +13,13 @@ export class MesobController {
   constructor(private mesob: MesobService) {}
 
   @Post('sync/trader/:id')
-  @RequirePermissions('*')
+  @RequirePermissions('mesob.manage')
   pushTrader(@Param('id') id: string) {
     return this.mesob.pushToMesob('trader', id);
   }
 
   @Post('sync/business/:id')
-  @RequirePermissions('*')
+  @RequirePermissions('mesob.manage')
   pushBusiness(@Param('id') id: string) {
     return this.mesob.pushToMesob('business', id);
   }

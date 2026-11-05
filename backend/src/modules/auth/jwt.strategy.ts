@@ -1,3 +1,4 @@
+import { profile } from './access';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -28,23 +29,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: authConfig().mode==='keycloak' ? await this.central.resolve(payload) : payload.sub },
-      include: {
-        role: {
-          include: {
-            rolePermissions: { include: { permission: true } },
-          },
-        },
-      },
-    });
-    if (!user || !user.isActive) throw new UnauthorizedException();
-    const permissions = user.role.rolePermissions.map((rp) => rp.permission.code);
-    return {
-      sub: user.id,
-      email: user.email,
-      role: user.role.name,
-      permissions,
-    };
+    return profile(this.prisma,authConfig().mode==='keycloak' ? await this.central.resolve(payload) : payload.sub);
   }
 }

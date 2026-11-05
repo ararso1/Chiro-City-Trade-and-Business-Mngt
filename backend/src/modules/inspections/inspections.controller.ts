@@ -14,7 +14,7 @@ export class InspectionsController {
   constructor(private inspections: InspectionsService) {}
 
   @Post()
-  @RequirePermissions('inspections.create', '*')
+  @RequirePermissions('inspections.create')
   create(
     @Body() body: { businessId: string; scheduledAt: string; status?: string },
     @CurrentUser('sub') userId: string,
@@ -28,7 +28,7 @@ export class InspectionsController {
   }
 
   @Get()
-  @RequirePermissions('inspections.read', '*')
+  @RequirePermissions('inspections.read')
   findAll(
     @Query('businessId') businessId?: string,
     @Query('status') status?: string,
@@ -44,13 +44,13 @@ export class InspectionsController {
   }
 
   @Get(':id')
-  @RequirePermissions('inspections.read', '*')
+  @RequirePermissions('inspections.read')
   findOne(@Param('id') id: string) {
     return this.inspections.findOne(id);
   }
 
   @Put(':id/result')
-  @RequirePermissions('inspections.update', '*')
+  @RequirePermissions('inspections.update')
   updateResult(
     @Param('id') id: string,
     @Body() body: { conductedAt?: string; status?: string; result?: string; summary?: string },
@@ -61,7 +61,7 @@ export class InspectionsController {
   }
 
   @Post(':id/violations')
-  @RequirePermissions('inspections.update', '*')
+  @RequirePermissions('inspections.update')
   addViolation(
     @Param('id') id: string,
     @Body() body: { code: string; description: string; severity: string },

@@ -8,11 +8,12 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 @ApiTags('complaints')
 @ApiBearerAuth()
 @Controller('complaints')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ComplaintsController {
   constructor(private complaints: ComplaintsService) {}
 
   @Post()
+  @RequirePermissions('complaints.create')
   create(
     @Body()
     body: {
@@ -30,7 +31,7 @@ export class ComplaintsController {
 
   @Get()
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('complaints.read', '*')
+  @RequirePermissions('complaints.read')
   findAll(
     @Query('status') status?: string,
     @Query('traderId') traderId?: string,
@@ -47,14 +48,14 @@ export class ComplaintsController {
 
   @Get(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('complaints.read', '*')
+  @RequirePermissions('complaints.read')
   findOne(@Param('id') id: string) {
     return this.complaints.findOne(id);
   }
 
   @Put(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('complaints.update', '*')
+  @RequirePermissions('complaints.update')
   update(
     @Param('id') id: string,
     @Body()

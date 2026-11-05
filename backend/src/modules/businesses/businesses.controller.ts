@@ -14,13 +14,13 @@ export class BusinessesController {
   constructor(private businesses: BusinessesService) {}
 
   @Post()
-  @RequirePermissions('businesses.create', '*')
+  @RequirePermissions('businesses.create')
   create(@Body() dto: CreateBusinessDto) {
     return this.businesses.create(dto);
   }
 
   @Get()
-  @RequirePermissions('businesses.read', '*')
+  @RequirePermissions('businesses.read')
   findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
@@ -38,13 +38,13 @@ export class BusinessesController {
   }
 
   @Get(':id')
-  @RequirePermissions('businesses.read', '*')
+  @RequirePermissions('businesses.read')
   findOne(@Param('id') id: string) {
     return this.businesses.findOne(id);
   }
 
   @Put(':id')
-  @RequirePermissions('businesses.update', '*')
+  @RequirePermissions('businesses.update')
   update(@Param('id') id: string, @Body() dto: UpdateBusinessDto) {
     return this.businesses.update(id, dto);
   }

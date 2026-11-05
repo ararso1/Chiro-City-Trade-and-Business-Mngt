@@ -23,6 +23,8 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL:-https://auth.chirocity.gov.et}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-chirocity}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-cctbm-web}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-cctbm-provisioner}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
       KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-cctbm-api}
       NODE_ENV: production
       PORT: 3003

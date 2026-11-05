@@ -16,7 +16,7 @@ export class DocumentsController {
   constructor(private documents: DocumentsService) {}
 
   @Get('list')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   list(
     @Query('scope') scope?: 'trader' | 'business',
     @Query('query') query?: string,
@@ -39,25 +39,25 @@ export class DocumentsController {
   }
 
   @Get('search')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   search(@Query('query') query?: string, @Query('type') type?: string) {
     return this.documents.search({ query, type });
   }
 
   @Get('trader/:traderId')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   getTraderDocuments(@Param('traderId') traderId: string) {
     return this.documents.findTraderDocuments(traderId);
   }
 
   @Get('business/:businessId')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   getBusinessDocuments(@Param('businessId') businessId: string) {
     return this.documents.findBusinessDocuments(businessId);
   }
 
   @Post('trader')
-  @RequirePermissions('documents.create', '*')
+  @RequirePermissions('documents.create')
   createTraderDocument(
     @Body() body: { traderId: string; name: string; type: string; filePath: string; mimeType?: string; sizeBytes?: number },
   ) {
@@ -65,7 +65,7 @@ export class DocumentsController {
   }
 
   @Post('trader/:traderId/upload')
-  @RequirePermissions('documents.create', '*')
+  @RequirePermissions('documents.create')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
@@ -99,7 +99,7 @@ export class DocumentsController {
   }
 
   @Get('trader-doc/:id/download')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   async downloadTraderDoc(
     @Param('id') id: string,
     @Req() req: Request,
@@ -123,7 +123,7 @@ export class DocumentsController {
   }
 
   @Get('trader-doc/:id/view')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   async viewTraderDoc(
     @Param('id') id: string,
     @Req() req: Request,
@@ -147,7 +147,7 @@ export class DocumentsController {
   }
 
   @Put('trader-doc/:id')
-  @RequirePermissions('documents.update', '*')
+  @RequirePermissions('documents.update')
   async updateTraderDocMeta(
     @Param('id') id: string,
     @Body() body: { name?: string; type?: string },
@@ -191,7 +191,7 @@ export class DocumentsController {
   }
 
   @Post('business')
-  @RequirePermissions('documents.create', '*')
+  @RequirePermissions('documents.create')
   createBusinessDocument(
     @Body()
     body: {
@@ -207,7 +207,7 @@ export class DocumentsController {
   }
 
   @Post('business/:businessId/upload')
-  @RequirePermissions('documents.create', '*')
+  @RequirePermissions('documents.create')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 25 * 1024 * 1024 },
@@ -241,7 +241,7 @@ export class DocumentsController {
   }
 
   @Get('business-doc/:id/download')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   async downloadBusinessDoc(
     @Param('id') id: string,
     @Req() req: Request,
@@ -265,7 +265,7 @@ export class DocumentsController {
   }
 
   @Get('business-doc/:id/view')
-  @RequirePermissions('documents.read', '*')
+  @RequirePermissions('documents.read')
   async viewBusinessDoc(
     @Param('id') id: string,
     @Req() req: Request,
@@ -289,7 +289,7 @@ export class DocumentsController {
   }
 
   @Put('business-doc/:id')
-  @RequirePermissions('documents.update', '*')
+  @RequirePermissions('documents.update')
   async updateBusinessDocMeta(
     @Param('id') id: string,
     @Body() body: { name?: string; type?: string },

@@ -33,13 +33,13 @@ export class NotificationsController {
   }
 
   @Put(':id/read')
-  markRead(@Param('id') id: string) {
-    return this.notifications.markRead(id);
+  markRead(@Param('id') id: string, @CurrentUser('sub') userId:string) {
+    return this.notifications.markRead(id,userId);
   }
 
   @Post()
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   create(
     @Body()
     body: {
@@ -62,7 +62,7 @@ export class NotificationsController {
 
   @Put(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   update(
     @Param('id') id: string,
     @Body()
@@ -82,7 +82,7 @@ export class NotificationsController {
 
   @Post('draft')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   saveDraft(
     @Body()
     body: {
@@ -100,21 +100,21 @@ export class NotificationsController {
 
   @Put(':id/publish')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   publish(@Param('id') id: string, @CurrentUser('sub') userId?: string) {
     return this.notifications.publishDraft(id, userId);
   }
 
   @Delete(':id')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   remove(@Param('id') id: string) {
     return this.notifications.remove(id);
   }
 
   @Post('bulk')
   @UseGuards(PermissionsGuard)
-  @RequirePermissions('notifications.create', '*')
+  @RequirePermissions('notifications.create')
   bulkSend(
     @Body()
     body: {

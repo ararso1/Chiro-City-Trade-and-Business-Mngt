@@ -24,6 +24,8 @@ interface SidebarProps {
 const menuItems = [
   { title: 'Dashboard', icon: BarChart3, href: '/dashboard', permission: 'dashboard.view' },
   { title: 'Traders', icon: Users, href: '/traders', permission: 'traders.read' },
+  { title: 'Finance', icon: BarChart3, href: '/finance', permission: 'payments.read' },
+  { title: 'Inspections', icon: Shield, href: '/inspections', permission: 'inspections.read' },
   { title: 'Complaints', icon: MessageSquare, href: '/complaints', permission: 'complaints.read' },
   { title: 'Digital Archive', icon: Archive, href: '/archive', permission: 'documents.read' },
   { title: 'Reports', icon: BarChart3, href: '/reports', permission: 'reports.read' },
@@ -36,13 +38,13 @@ const adminItems = [
   title: 'User Management',
   icon: Shield,
   href: '/admin/users',
-  permission: '*'
+  permission: 'users.read'
 },
 {
   title: 'System Settings',
   icon: Settings,
   href: '/admin/settings',
-  permission: '*'
+  permission: 'settings.read'
 }];
 
 
@@ -50,11 +52,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
   const { user, logout, hasPermission } = useAuth();
 
   const filteredMenuItems = menuItems.filter((item) =>
-  item.permission === '*' || hasPermission(item.permission)
+  hasPermission(item.permission) || (item.href==='/finance' && hasPermission('finance.read')) || (item.href==='/admin/users' && hasPermission('roles.read'))
   );
 
   const filteredAdminItems = adminItems.filter((item) =>
-  item.permission === '*' || hasPermission(item.permission)
+  hasPermission(item.permission) || (item.href==='/finance' && hasPermission('finance.read')) || (item.href==='/admin/users' && hasPermission('roles.read'))
   );
 
   return (

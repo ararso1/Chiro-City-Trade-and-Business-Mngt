@@ -1,7 +1,13 @@
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/layout/Layout";
 
@@ -27,7 +33,8 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, homePath } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -45,6 +52,44 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const permissions: Record<string, string[]> = {
+    "/dashboard": ["dashboard.view"],
+    "/traders": ["traders.read"],
+    "/traders/register": ["traders.create"],
+    "/finance": ["payments.read", "finance.read"],
+    "/inspections": ["inspections.read"],
+    "/complaints": ["complaints.read"],
+    "/archive": ["documents.read"],
+    "/reports": ["reports.read"],
+    "/admin/users": ["users.read", "roles.read"],
+    "/admin/settings": ["settings.read"],
+  };
+  if (isAuthenticated && location.pathname === "/no-access")
+    return (
+      <div className="p-8">
+        Your account has no page permissions. Contact your CCTBM administrator.
+      </div>
+    );
+  if (
+    isAuthenticated &&
+    location.pathname === "/dashboard" &&
+    !hasPermission("dashboard.view") &&
+    homePath !== "/dashboard"
+  )
+    return <Navigate to={homePath} replace />;
+  const needed =
+    permissions[location.pathname] ??
+    (location.pathname.startsWith("/traders/")
+      ? [
+          location.pathname.endsWith("/edit")
+            ? "traders.update"
+            : "traders.read",
+        ]
+      : undefined);
+  if (isAuthenticated && needed && !needed.some(hasPermission))
+    return (
+      <div className="p-8">You do not have permission to open this page.</div>
+    );
   return isAuthenticated ? (
     <>{children}</>
   ) : (
@@ -54,7 +99,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Public Route Component (redirects to dashboard if authenticated)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, homePath } = useAuth();
 
   if (isLoading) {
     return (
@@ -76,7 +121,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     <>{children}</>
   ) : (
     <Navigate
-      to="/dashboard"
+      to={homePath}
       replace
       data-id="k95po2qvw"
       data-path="src/App.tsx"

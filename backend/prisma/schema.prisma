@@ -44,6 +44,8 @@ model User {
   passwordHash  String
   name          String
   phone         String?
+  roleNames     String[] @default([])
+  rolesValidAfter BigInt @default(0)
   roleId        String
   role          Role      @relation(fields: [roleId], references: [id])
   isActive      Boolean   @default(true)

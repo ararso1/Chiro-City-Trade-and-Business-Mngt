@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { api } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 export default function ComplaintsPage() {
+  const {hasPermission}=useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function ComplaintsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div><CardTitle>Complaints</CardTitle><CardDescription>Total: {total}</CardDescription></div>
-          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> Submit complaint</Button>
+          <Button disabled={!hasPermission('complaints.create')} onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> Submit complaint</Button>
         </CardHeader>
         <CardContent>
           {loading ? (
