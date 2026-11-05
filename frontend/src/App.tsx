@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   BrowserRouter,
@@ -33,7 +34,7 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, hasPermission, homePath } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, homePath, user, logout, refreshProfile } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -64,12 +65,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     "/admin/users": ["users.read", "roles.read"],
     "/admin/settings": ["settings.read"],
   };
-  if (isAuthenticated && location.pathname === "/no-access")
+  if (isAuthenticated && location.pathname === "/no-access") {
+    if (homePath !== "/no-access") return <Navigate to={homePath} replace />;
     return (
-      <div className="p-8">
-        Your account has no page permissions. Contact your CCTBM administrator.
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-lg space-y-4 rounded-lg border bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-semibold">Access has not been granted</h1>
+          <p>Signed in as <strong>{user?.email}</strong> (role: {user?.role}).</p>
+          <p className="text-muted-foreground">Your account has no page permissions. Ask a CCTBM administrator to grant permissions to your role in User Management.</p>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => void refreshProfile()}>Check access again</Button>
+            <Button variant="outline" onClick={logout}>Sign out / switch account</Button>
+          </div>
+        </div>
       </div>
     );
+  }
   if (
     isAuthenticated &&
     location.pathname === "/dashboard" &&

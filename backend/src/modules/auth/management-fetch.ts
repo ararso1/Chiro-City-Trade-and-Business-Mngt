@@ -19,7 +19,7 @@ export const managementFetch: typeof fetch = async (input, options = {}) => {
     const secure = url.protocol === 'https:';
     const request = (secure ? https : http).request(url, {
       method: options.method || 'GET', headers, family: 4,
-      agent: secure ? httpsAgent : httpAgent,
+      agent: headers.connection?.toLowerCase() === 'close' ? false : secure ? httpsAgent : httpAgent,
       signal: options.signal ?? undefined,
       timeout: 15000,
     }, response => {

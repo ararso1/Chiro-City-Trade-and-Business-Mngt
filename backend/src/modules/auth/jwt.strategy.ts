@@ -1,4 +1,5 @@
 import { profile } from './access';
+import { keycloakKeys } from './keycloak-keys';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -24,7 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      ...(authConfig().mode==='keycloak' ? { algorithms:['RS256'], issuer:authConfig().issuer, audience:authConfig().audience, secretOrKeyProvider:passportJwtSecret({cache:true,rateLimit:true,jwksRequestsPerMinute:10,timeout:5000,jwksUri:authConfig().issuer+'/protocol/openid-connect/certs'}) } : {algorithms:['HS256'],secretOrKey:config.get('JWT_SECRET') || 'chiro-city-trade-secret-change-in-production'}),
+      ...(authConfig().mode==='keycloak' ? { algorithms:['RS256'], issuer:authConfig().issuer, audience:authConfig().audience, secretOrKeyProvider:passportJwtSecret({cache:true,rateLimit:true,jwksRequestsPerMinute:10,fetcher:keycloakKeys,jwksUri:authConfig().issuer+'/protocol/openid-connect/certs'}) } : {algorithms:['HS256'],secretOrKey:config.get('JWT_SECRET') || 'chiro-city-trade-secret-change-in-production'}),
     });
   }
 

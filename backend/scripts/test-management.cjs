@@ -10,6 +10,9 @@ const {KeycloakAdmin}=require('../dist/src/modules/auth/keycloak-admin');
 const {PermissionsGuard}=require('../dist/src/modules/auth/permissions.guard');
 const {managementFetch}=require('../dist/src/modules/auth/management-fetch');
 const http=require('node:http');
+const {keycloakKeys}=require('../dist/src/modules/auth/keycloak-keys');
+const {JwtAuthGuard}=require('../dist/src/modules/auth/jwt-auth.guard');
+const {ServiceUnavailableException}=require('@nestjs/common');
 const actor={sub:'actor',permissions:['users.create','users.read','users.update','roles.create','roles.update','roles.read','permissions.read','traders.read']};
 const row=(name,codes)=>({id:name,name,rolePermissions:codes.map(code=>({permission:{id:code,code}}))});
 function setup(){
@@ -117,4 +120,21 @@ test('a network failure does not replay account creation',async()=>{
  const transport=async(url)=>{if(url.endsWith('/token'))return new Response(JSON.stringify({access_token:'test-only'}));creates++;throw Error('connection closed');};
  const a=new KeycloakAdmin(new ConfigService({KEYCLOAK_ADMIN_CLIENT_ID:'test-client',KEYCLOAK_ADMIN_CLIENT_SECRET:'test-only'}),transport);
  await assert.rejects(a.createIdentity({email:'test@example.com',firstName:'Test',lastName:'User',password:'test-only-password'}),/could not connect/);assert.equal(creates,1);
+});
+test('signing-key retrieval retries a dropped connection',async()=>{
+ let count=0;
+ const server=http.createServer((req,res)=>{count++;if(count===1){req.socket.destroy();return;}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({keys:[{kid:'test-key'}]}));});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try {assert.equal((await keycloakKeys(`http://127.0.0.1:${server.address().port}/certs`)).keys[0].kid,'test-key');assert.equal(count,2);}
+ finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+});
+test('a key-server outage is 503 rather than an invalid-credentials 401',()=>{
+ const guard=new JwtAuthGuard();
+ assert.throws(()=>guard.handleRequest(null,false,new ServiceUnavailableException('Signing keys unavailable'),{}),error=>error.getStatus()===503);
+});
+test('invalid audience and expired tokens stay unauthorized with an actionable reason',()=>{
+ const guard=new JwtAuthGuard();
+ assert.throws(()=>guard.handleRequest(null,false,{message:'jwt audience invalid. expected: cctbm-api'},{}),error=>error.getStatus()===401&&error.message.includes('audience'));
+ assert.throws(()=>guard.handleRequest(null,false,{name:'TokenExpiredError'},{}),error=>error.getStatus()===401&&error.message.includes('expired'));
+ assert.throws(()=>guard.handleRequest(null,false,{name:'JsonWebTokenError',message:'invalid signature'},{}),error=>error.getStatus()===401);
 });
