@@ -8,6 +8,8 @@ const {RolesService,administratorPermissions}=require('../dist/src/modules/users
 const {CreateUserDto}=require('../dist/src/modules/users/management.dto');
 const {KeycloakAdmin}=require('../dist/src/modules/auth/keycloak-admin');
 const {PermissionsGuard}=require('../dist/src/modules/auth/permissions.guard');
+const {managementFetch}=require('../dist/src/modules/auth/management-fetch');
+const http=require('node:http');
 const actor={sub:'actor',permissions:['users.create','users.read','users.update','roles.create','roles.update','roles.read','permissions.read','traders.read']};
 const row=(name,codes)=>({id:name,name,rolePermissions:codes.map(code=>({permission:{id:code,code}}))});
 function setup(){
@@ -92,4 +94,27 @@ test('central identity creation verifies email and requires a password change',a
  admin.request=async(path,method,body)=>{sent=body;return 'https://auth/users/created'};
  assert.equal(await admin.createIdentity({email:'new@example.com',firstName:'New',lastName:'User',password:'Test-only-example1!'}),'created');
  assert.equal(sent.emailVerified,true);assert.equal(sent.enabled,false);assert.equal(sent.credentials[0].temporary,true);
+});
+test('default management transport sends form credentials and preserves creation Location',async()=>{
+ let received;
+ const server=http.createServer((req,res)=>{let body='';req.on('data',d=>body+=d);req.on('end',()=>{received={body,type:req.headers['content-type']};res.writeHead(201,{Location:'/users/test-created'});res.end();});});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try {
+  const response=await managementFetch(`http://127.0.0.1:${server.address().port}/users`,{method:'POST',body:new URLSearchParams({grant_type:'client_credentials',client_id:'test-client'})});
+  assert.equal(response.status,201);assert.equal(response.headers.get('location'),'/users/test-created');
+  assert.equal(received.type,'application/x-www-form-urlencoded');assert.ok(received.body.includes('client_id=test-client'));
+ } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+});
+test('default management transport never follows redirects with credentials',async()=>{
+ let requests=0;
+ const server=http.createServer((req,res)=>{requests++;res.writeHead(302,{Location:'/elsewhere'});res.end();});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try {const response=await managementFetch(`http://127.0.0.1:${server.address().port}/token`,{method:'POST',body:'test-only'});assert.equal(response.status,302);assert.equal(requests,1);}
+ finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+});
+test('a network failure does not replay account creation',async()=>{
+ let creates=0;
+ const transport=async(url)=>{if(url.endsWith('/token'))return new Response(JSON.stringify({access_token:'test-only'}));creates++;throw Error('connection closed');};
+ const a=new KeycloakAdmin(new ConfigService({KEYCLOAK_ADMIN_CLIENT_ID:'test-client',KEYCLOAK_ADMIN_CLIENT_SECRET:'test-only'}),transport);
+ await assert.rejects(a.createIdentity({email:'test@example.com',firstName:'Test',lastName:'User',password:'test-only-password'}),/could not connect/);assert.equal(creates,1);
 });

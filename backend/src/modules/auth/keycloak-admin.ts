@@ -1,4 +1,5 @@
 import { canonical } from "./access";
+import { managementFetch } from "./management-fetch";
 import { HttpException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { authConfig } from "./auth.config";
@@ -21,7 +22,7 @@ export class KeycloakAdmin {
   private client = "";
   constructor(
     private config: ConfigService,
-    private transport: typeof fetch = fetch,
+    private transport: typeof fetch = managementFetch,
   ) {}
 
   private async send(url: string, options: RequestInit): Promise<Response> {
@@ -123,7 +124,7 @@ export class KeycloakAdmin {
       if (error instanceof AuthError) throw error;
       throw new AuthError(
         503,
-        "Chiro Auth management is temporarily unavailable.",
+        "CCTBM could not connect to Chiro Auth. Please retry; if it persists, check the backend connection.",
       );
     }
   }
@@ -137,7 +138,7 @@ export class KeycloakAdmin {
         (c: any) => c.clientId === authConfig().audience,
       );
       if (exact.length !== 1 || !exact[0].id)
-        throw new AuthError(503, "LMS API client was not found in Chiro Auth.");
+        throw new AuthError(503, "CCTBM API client was not found in Chiro Auth.");
       this.client = `/clients/${encodeURIComponent(exact[0].id)}`;
     }
     return this.client;
