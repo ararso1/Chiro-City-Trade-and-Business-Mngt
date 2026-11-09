@@ -13,7 +13,7 @@ export function initializeAuth(): Promise<void> {
     if (authSettings.mode === 'keycloak') {
       for (const key of ['chiro_trade_token']) localStorage.removeItem(key);
       client = new Keycloak({ url: authSettings.url, realm: authSettings.realm, clientId: authSettings.clientId });
-      await client.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false, redirectUri: `${location.origin}/login`, responseMode: 'query' });
+      await client.init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false, redirectUri: `${location.origin}/login`, responseMode: 'query' });
     }
   })();
 }

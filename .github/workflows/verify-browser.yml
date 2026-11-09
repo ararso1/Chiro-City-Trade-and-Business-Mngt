@@ -25,9 +25,9 @@ jobs:
               page.on('requestfailed', req => console.log('REQUEST FAILED', new URL(req.url()).origin + new URL(req.url()).pathname, req.failure()?.errorText));
               page.on('console', msg => { if (msg.type() === 'error') console.log('BROWSER ERROR', msg.text()); });
               await page.goto('https://cctbm.chirocity.gov.et/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
-              const login = page.getByRole('button', { name: 'Sign in with Chiro Auth' });
-              await login.waitFor({ timeout: 30000 });
-              console.log('CCTBM central login screen rendered.');
+              await page.waitForURL('https://auth.chirocity.gov.et/**', { timeout: 30000 });
+              await page.locator('#username').waitFor({ timeout: 30000 });
+              console.log('Keycloak opens automatically without an intermediate app login page.');
               const config = await page.request.get('https://cctbm-api.chirocity.gov.et/auth/config');
               const settings = await config.json();
               if (settings.mode !== 'keycloak' || settings.clientId !== 'cctbm-web') throw new Error('Unexpected production auth settings');
@@ -48,8 +48,6 @@ jobs:
                 console.log('Auth layout fits:', JSON.stringify(viewport));
                 await page.screenshot({ path: `cctbm-login-${viewport.width}.png`, fullPage: true });
               }
-              await login.waitFor();
-              await login.click();
               await page.waitForURL('https://auth.chirocity.gov.et/**', { timeout: 30000 });
               await page.locator('#username').waitFor({ timeout: 30000 });
               console.log('Chiro Auth username/password form reached.');
