@@ -18,12 +18,31 @@ export class ReportsController {
     return this.reports.getDashboardStats();
   }
 
+  @Get('summary')
+  @RequirePermissions('reports.read')
+  getModuleSummary(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('all') all?: string,
+  ) {
+    return this.reports.getModuleSummary({
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      allTime: all === '1' || all === 'true',
+    });
+  }
+
   @Get('export-summary')
   @RequirePermissions('reports.read')
-  getExportSummary(@Query('from') from?: string, @Query('to') to?: string) {
+  getExportSummary(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('all') all?: string,
+  ) {
     return this.reports.getExportSummary({
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,
+      allTime: all === '1' || all === 'true',
     });
   }
 }

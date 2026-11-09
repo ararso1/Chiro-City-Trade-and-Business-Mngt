@@ -1,30 +1,23 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart,
   Bar,
@@ -36,575 +29,683 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-} from "recharts";
+} from 'recharts';
 import {
-  Download,
-  FileSpreadsheet,
-  FileText,
-  TrendingUp,
-  Users,
-  Calendar,
+  Archive,
+  AlertTriangle,
+  Building2,
   DollarSign,
-  Clock,
+  FileCheck,
   Filter,
-} from "lucide-react";
+  MessageSquare,
+  RefreshCw,
+  Shield,
+  Users,
+} from 'lucide-react';
 import {
-  format,
-  subDays,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
+  endOfDay,
   endOfMonth,
-} from "date-fns";
+  endOfWeek,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  subDays,
+} from 'date-fns';
+import { api } from '@/services/api';
 
-export default function ReportsPage() {
+type ModuleSummary = Awaited<ReturnType<typeof api.reports.summary>>;
 
+type DatePreset =
+  | 'this-week'
+  | 'this-month'
+  | 'last-30-days'
+  | 'last-90-days'
+  | 'this-year'
+  | 'fiscal-year'
+  | 'custom'
+  | 'all-time';
 
-  const [activeTab, setActiveTab] = useState("overview");
-  const [dateRange, setDateRange] = useState("this-month");
-  const [department, setDepartment] = useState("all");
-  const [reportType, setReportType] = useState("summary");
+const CHART_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  '#0ea5e9',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+];
 
-  // Mock data for reports
-  const attendanceData = [
-    { name: "Mon", present: 45, absent: 5, late: 2 },
-    { name: "Tue", present: 48, absent: 2, late: 1 },
-    { name: "Wed", present: 47, absent: 3, late: 3 },
-    { name: "Thu", present: 46, absent: 4, late: 2 },
-    { name: "Fri", present: 44, absent: 6, late: 4 },
-  ];
+function toRecordEntries(record: Record<string, number> = {}) {
+  return Object.entries(record)
+    .filter(([, value]) => value > 0)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+}
 
-  const leaveData = [
-    { name: "Annual Leave", value: 65, color: "#8884d8" },
-    { name: "Sick Leave", value: 25, color: "#82ca9d" },
-    { name: "Personal Leave", value: 15, color: "#ffc658" },
-    { name: "Maternity Leave", value: 8, color: "#ff7300" },
-  ];
+function formatMoney(value: number, currency = 'ETB') {
+  return `${Number(value || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} ${currency}`;
+}
 
-  const payrollData = [
-    { month: "Jan", gross: 450000, net: 360000, taxes: 90000 },
-    { month: "Feb", gross: 465000, net: 372000, taxes: 93000 },
-    { month: "Mar", gross: 478000, net: 382400, taxes: 95600 },
-    { month: "Apr", gross: 485000, net: 388000, taxes: 97000 },
-    { month: "May", gross: 492000, net: 393600, taxes: 98400 },
-    { month: "Jun", gross: 501000, net: 400800, taxes: 100200 },
-  ];
+function resolvePresetRange(preset: DatePreset): { from?: Date; to?: Date } {
+  const now = new Date();
+  switch (preset) {
+    case 'this-week':
+      return { from: startOfWeek(now), to: endOfWeek(now) };
+    case 'this-month':
+      return { from: startOfMonth(now), to: endOfMonth(now) };
+    case 'last-30-days':
+      return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+    case 'last-90-days':
+      return { from: startOfDay(subDays(now, 89)), to: endOfDay(now) };
+    case 'this-year':
+      return { from: startOfYear(now), to: endOfDay(now) };
+    case 'all-time':
+      return {};
+    case 'fiscal-year':
+    case 'custom':
+    default:
+      return {};
+  }
+}
 
-  const timesheetData = [
-    {
-      employee: "John Doe",
-      regularHours: 160,
-      overtimeHours: 12,
-      totalHours: 172,
-    },
-    {
-      employee: "Jane Smith",
-      regularHours: 160,
-      overtimeHours: 8,
-      totalHours: 168,
-    },
-    {
-      employee: "Alice Johnson",
-      regularHours: 152,
-      overtimeHours: 5,
-      totalHours: 157,
-    },
-    {
-      employee: "Bob Wilson",
-      regularHours: 160,
-      overtimeHours: 15,
-      totalHours: 175,
-    },
-    {
-      employee: "Carol Brown",
-      regularHours: 158,
-      overtimeHours: 3,
-      totalHours: 161,
-    },
-  ];
+function toIsoDate(value?: Date | null) {
+  if (!value) return undefined;
+  return format(value, 'yyyy-MM-dd');
+}
 
-  const departmentStats = [
-    { department: "Engineering", employees: 25, avgSalary: 95000, turnover: 5 },
-    { department: "Sales", employees: 15, avgSalary: 75000, turnover: 8 },
-    { department: "Marketing", employees: 12, avgSalary: 70000, turnover: 3 },
-    { department: "HR", employees: 8, avgSalary: 65000, turnover: 2 },
-    { department: "Finance", employees: 10, avgSalary: 80000, turnover: 1 },
-  ];
-
-  const handleExportReport = (format: "excel" | "pdf") => {
-    // addNotification({
-    //   title: "Export Started",
-    //   message: `Your ${format.toUpperCase()} report is being generated`,
-    //   type: "info",
-    // });
-
-    // // Simulate export process
-    // setTimeout(() => {
-    //   addNotification({
-    //     title: "Export Complete",
-    //     message: `Your ${format.toUpperCase()} report has been downloaded`,
-    //     type: "success",
-    //   });
-    // }, 2000);
-  };
-
-  const getDateRangeText = () => {
-    const now = new Date();
-    switch (dateRange) {
-      case "this-week":
-        return `${format(startOfWeek(now), "MMM dd")} - ${format(
-          endOfWeek(now),
-          "MMM dd, yyyy"
-        )}`;
-      case "this-month":
-        return `${format(startOfMonth(now), "MMM dd")} - ${format(
-          endOfMonth(now),
-          "MMM dd, yyyy"
-        )}`;
-      case "last-30-days":
-        return `${format(subDays(now, 30), "MMM dd")} - ${format(
-          now,
-          "MMM dd, yyyy"
-        )}`;
-      case "last-90-days":
-        return `${format(subDays(now, 90), "MMM dd")} - ${format(
-          now,
-          "MMM dd, yyyy"
-        )}`;
-      default:
-        return "Custom Range";
-    }
-  };
-
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+const StatCard = ({
+  title,
+  value,
+  description,
+  icon: Icon,
+}: {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ElementType;
+}) => (
+  <Card>
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Reports & Analytics
-          </h1>
-          <p className="text-muted-foreground">
-            Comprehensive reports and insights for HR operations
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <div className="mt-2 text-2xl font-bold">{value}</div>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleExportReport("excel")}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Export Excel
-          </Button>
-          <Button variant="outline" onClick={() => handleExportReport("pdf")}>
-            <FileText className="mr-2 h-4 w-4" />
-            Export PDF
-          </Button>
+        <div className="rounded-xl bg-muted p-3">
+          <Icon className="h-5 w-5 text-muted-foreground" />
         </div>
       </div>
+    </CardContent>
+  </Card>
+);
 
-      {/* Filters */}
+const BreakdownList = ({
+  title,
+  items,
+}: {
+  title: string;
+  items: { name: string; value: number }[];
+}) => (
+  <div className="space-y-3">
+    <h4 className="text-sm font-medium">{title}</h4>
+    {items.length === 0 ? (
+      <p className="text-sm text-muted-foreground">No records in this period</p>
+    ) : (
+      <div className="space-y-2">
+        {items.slice(0, 8).map((item) => (
+          <div
+            key={item.name}
+            className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+          >
+            <span className="capitalize text-muted-foreground">
+              {item.name.replaceAll('_', ' ')}
+            </span>
+            <span className="font-medium">{item.value.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+const StatusChart = ({
+  title,
+  description,
+  data,
+}: {
+  title: string;
+  description: string;
+  data: { name: string; value: number }[];
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {data.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          No data for the selected period
+        </p>
+      ) : (
+        <ResponsiveContainer width="100%" height={240}>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={85}
+              paddingAngle={2}
+              label={({ name, value }) => `${name}: ${value}`}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`${entry.name}-${index}`}
+                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+    </CardContent>
+  </Card>
+);
+
+export default function ReportsPage() {
+  const [preset, setPreset] = useState<DatePreset>('fiscal-year');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [summary, setSummary] = useState<ModuleSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const queryRange = useMemo(() => {
+    if (preset === 'all-time') {
+      return { all: true as const };
+    }
+    if (preset === 'custom') {
+      return {
+        from: customFrom || undefined,
+        to: customTo || undefined,
+      };
+    }
+    if (preset === 'fiscal-year') {
+      return {};
+    }
+    const range = resolvePresetRange(preset);
+    return {
+      from: toIsoDate(range.from),
+      to: toIsoDate(range.to),
+    };
+  }, [preset, customFrom, customTo]);
+
+  const loadSummary = useCallback(
+    async (silent = false) => {
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const data = await api.reports.summary(queryRange);
+        setSummary(data);
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load report summary');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [queryRange],
+  );
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
+  const overviewBars = useMemo(() => {
+    if (!summary) return [];
+    return [
+      { name: 'Traders', value: summary.overview.traders },
+      { name: 'Businesses', value: summary.overview.businesses },
+      { name: 'Licenses', value: summary.overview.licenses },
+      { name: 'Inspections', value: summary.overview.inspections },
+      { name: 'Complaints', value: summary.overview.openComplaints },
+      { name: 'Documents', value: summary.overview.documents },
+    ];
+  }, [summary]);
+
+  const periodLabel = useMemo(() => {
+    if (!summary) return 'Loading period…';
+    if (preset === 'all-time') return 'All time';
+    if (summary.period.from && summary.period.to) {
+      return `${format(new Date(summary.period.from), 'MMM d, yyyy')} – ${format(
+        new Date(summary.period.to),
+        'MMM d, yyyy',
+      )}`;
+    }
+    return summary.period.label || 'All time';
+  }, [summary, preset]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (error || !summary) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+        <p className="font-medium">Could not load reports</p>
+        <p className="text-sm">{error || 'Unknown error'}</p>
+        <Button className="mt-3" variant="outline" onClick={() => void loadSummary()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+          <p className="text-muted-foreground">
+            Cross-module summary for Chiro City trade and business operations
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{periodLabel}</Badge>
+            {summary.fiscalYear && preset === 'fiscal-year' && (
+              <Badge variant="outline">
+                Fiscal year: {summary.fiscalYear.label} ({summary.fiscalYear.calendarType})
+              </Badge>
+            )}
+            <span className="text-xs text-muted-foreground">
+              Updated {new Date(summary.generatedAt).toLocaleString()}
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => void loadSummary(true)}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Report Filters
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Filter className="h-4 w-4" />
+            Time filter
           </CardTitle>
+          <CardDescription>
+            Filter registrations, payments, inspections, complaints, and uploads by period
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="date-range">Date Range</Label>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="this-week">This Week</SelectItem>
-                  <SelectItem value="this-month">This Month</SelectItem>
-                  <SelectItem value="last-30-days">Last 30 Days</SelectItem>
-                  <SelectItem value="last-90-days">Last 90 Days</SelectItem>
-                  <SelectItem value="custom">Custom Range</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="text-sm text-muted-foreground mt-1">
-                {getDateRangeText()}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="department">Department</Label>
-              <Select value={department} onValueChange={setDepartment}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="hr">HR</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="report-type">Report Type</Label>
-              <Select value={reportType} onValueChange={setReportType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="summary">Summary</SelectItem>
-                  <SelectItem value="detailed">Detailed</SelectItem>
-                  <SelectItem value="comparative">Comparative</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button className="w-full">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Generate Report
-              </Button>
-            </div>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-2">
+            <Label>Preset</Label>
+            <Select
+              value={preset}
+              onValueChange={(value) => setPreset(value as DatePreset)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fiscal-year">Active fiscal year</SelectItem>
+                <SelectItem value="this-week">This week</SelectItem>
+                <SelectItem value="this-month">This month</SelectItem>
+                <SelectItem value="last-30-days">Last 30 days</SelectItem>
+                <SelectItem value="last-90-days">Last 90 days</SelectItem>
+                <SelectItem value="this-year">This calendar year</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+                <SelectItem value="all-time">All time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="from">From</Label>
+            <Input
+              id="from"
+              type="date"
+              value={
+                preset === 'custom'
+                  ? customFrom
+                  : 'from' in queryRange && queryRange.from
+                    ? queryRange.from
+                    : ''
+              }
+              disabled={preset !== 'custom'}
+              onChange={(e) => {
+                setPreset('custom');
+                setCustomFrom(e.target.value);
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="to">To</Label>
+            <Input
+              id="to"
+              type="date"
+              value={
+                preset === 'custom'
+                  ? customTo
+                  : 'to' in queryRange && queryRange.to
+                    ? queryRange.to
+                    : ''
+              }
+              disabled={preset !== 'custom'}
+              onChange={(e) => {
+                setPreset('custom');
+                setCustomTo(e.target.value);
+              }}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button className="w-full" onClick={() => void loadSummary()}>
+              Apply filter
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Report Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Traders"
+          value={summary.traders.total.toLocaleString()}
+          description={`${summary.traders.active} active, ${summary.traders.submitted} submitted`}
+          icon={Users}
+        />
+        <StatCard
+          title="Businesses"
+          value={summary.businesses.total.toLocaleString()}
+          description={`${summary.businesses.active} active, ${summary.businesses.pending} pending`}
+          icon={Building2}
+        />
+        <StatCard
+          title="Revenue"
+          value={formatMoney(summary.finance.revenue, summary.finance.currency)}
+          description={`${summary.finance.paidCount} paid payments`}
+          icon={DollarSign}
+        />
+        <StatCard
+          title="Open issues"
+          value={(
+            summary.overview.openComplaints + summary.overview.openViolations
+          ).toLocaleString()}
+          description={`${summary.overview.openViolations} violations, ${summary.overview.openComplaints} complaints`}
+          icon={AlertTriangle}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Licenses"
+          value={summary.licenses.total.toLocaleString()}
+          description={`${summary.licenses.issuedInPeriod} issued, ${summary.licenses.expiringSoon} expiring soon`}
+          icon={FileCheck}
+        />
+        <StatCard
+          title="Inspections"
+          value={summary.inspections.total.toLocaleString()}
+          description={`${summary.inspections.conducted} conducted, ${summary.inspections.scheduled} scheduled`}
+          icon={Shield}
+        />
+        <StatCard
+          title="Complaints"
+          value={summary.complaints.total.toLocaleString()}
+          description={`${summary.complaints.open} open, ${summary.complaints.resolved} resolved`}
+          icon={MessageSquare}
+        />
+        <StatCard
+          title="Documents"
+          value={summary.documents.total.toLocaleString()}
+          description={`${summary.documents.traderDocuments} trader, ${summary.documents.businessDocuments} business`}
+          icon={Archive}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Module volume</CardTitle>
+          <CardDescription>Activity counts across modules for the selected period</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={overviewBars}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="traders" className="space-y-4">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+          <TabsTrigger value="traders">Traders</TabsTrigger>
+          <TabsTrigger value="businesses">Businesses</TabsTrigger>
+          <TabsTrigger value="licenses">Licenses</TabsTrigger>
+          <TabsTrigger value="finance">Finance</TabsTrigger>
+          <TabsTrigger value="inspections">Inspections</TabsTrigger>
+          <TabsTrigger value="complaints">Complaints</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Employees
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">247</div>
-                <p className="text-xs text-muted-foreground">
-                  +5 from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Attendance Rate
-                </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">94.2%</div>
-                <p className="text-xs text-muted-foreground">
-                  +2.1% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Payroll
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">$501K</div>
-                <p className="text-xs text-muted-foreground">
-                  +3.2% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Avg. Hours/Week
-                </CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">42.3</div>
-                <p className="text-xs text-muted-foreground">
-                  +0.8 from last month
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Department Overview */}
+        <TabsContent value="traders" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="Trader status"
+            description="Registrations in the selected period by status"
+            data={toRecordEntries(summary.traders.byStatus)}
+          />
           <Card>
             <CardHeader>
-              <CardTitle>Department Overview</CardTitle>
-              <CardDescription>
-                Employee distribution and key metrics by department
-              </CardDescription>
+              <CardTitle>Trader categories</CardTitle>
+              <CardDescription>Top categories in this period</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Avg. Salary</TableHead>
-                    <TableHead>Turnover Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {departmentStats.map((dept) => (
-                    <TableRow key={dept.department}>
-                      <TableCell className="font-medium">
-                        {dept.department}
-                      </TableCell>
-                      <TableCell>{dept.employees}</TableCell>
-                      <TableCell>${dept.avgSalary.toLocaleString()}</TableCell>
-                      <TableCell>{dept.turnover}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <BreakdownList
+                title="By category"
+                items={toRecordEntries(summary.traders.byCategory)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="attendance" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Attendance</CardTitle>
-                <CardDescription>
-                  Attendance patterns for the current week
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={attendanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="present" fill="#10b981" name="Present" />
-                    <Bar dataKey="absent" fill="#ef4444" name="Absent" />
-                    <Bar dataKey="late" fill="#f59e0b" name="Late" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Attendance Summary</CardTitle>
-                <CardDescription>Key attendance metrics</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Present</span>
-                  <span className="text-sm font-bold text-green-600">
-                    230 (94.2%)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Absent</span>
-                  <span className="text-sm font-bold text-red-600">
-                    12 (4.9%)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Late</span>
-                  <span className="text-sm font-bold text-yellow-600">
-                    8 (3.3%)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">On Leave</span>
-                  <span className="text-sm font-bold text-blue-600">
-                    5 (2.0%)
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="leaves" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Distribution</CardTitle>
-                <CardDescription>
-                  Types of leaves taken this month
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={leaveData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {leaveData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Statistics</CardTitle>
-                <CardDescription>Monthly leave summary</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {leaveData.map((leave) => (
-                  <div
-                    key={leave.name}
-                    className="flex justify-between items-center"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: leave.color }}
-                      />
-                      <span className="text-sm font-medium">{leave.name}</span>
-                    </div>
-                    <span className="text-sm font-bold">
-                      {leave.value} days
-                    </span>
-                  </div>
-                ))}
-                <div className="pt-4 border-t">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">
-                      Total Leave Days
-                    </span>
-                    <span className="text-sm font-bold">
-                      {leaveData.reduce(
-                        (total, leave) => total + leave.value,
-                        0
-                      )}{" "}
-                      days
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="payroll" className="space-y-6">
+        <TabsContent value="businesses" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="Business status"
+            description="Business registrations by status"
+            data={toRecordEntries(summary.businesses.byStatus)}
+          />
           <Card>
             <CardHeader>
-              <CardTitle>Payroll Trends</CardTitle>
-              <CardDescription>
-                Monthly payroll expenses over time
-              </CardDescription>
+              <CardTitle>Business categories</CardTitle>
+              <CardDescription>Top categories in this period</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={payrollData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value) => [
-                      `$${Number(value).toLocaleString()}`,
-                      "",
-                    ]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="gross"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    name="Gross Pay"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="net"
-                    stroke="#82ca9d"
-                    strokeWidth={2}
-                    name="Net Pay"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="taxes"
-                    stroke="#ffc658"
-                    strokeWidth={2}
-                    name="Taxes"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <BreakdownList
+                title="By category"
+                items={toRecordEntries(summary.businesses.byCategory)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="timesheets" className="space-y-6">
+        <TabsContent value="licenses" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="License health"
+            description="Active, expired, and suspended licenses in period"
+            data={[
+              { name: 'active', value: summary.licenses.active },
+              { name: 'expired', value: summary.licenses.expired },
+              { name: 'suspended', value: summary.licenses.suspended },
+              { name: 'expiring soon', value: summary.licenses.expiringSoon },
+            ].filter((d) => d.value > 0)}
+          />
           <Card>
             <CardHeader>
-              <CardTitle>Employee Hours Summary</CardTitle>
-              <CardDescription>
-                Hours worked by employees this month
-              </CardDescription>
+              <CardTitle>License summary</CardTitle>
+              <CardDescription>Issuance and expiry outlook</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Total in period</p>
+                <p className="text-xl font-semibold">{summary.licenses.total}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Issued in period</p>
+                <p className="text-xl font-semibold">{summary.licenses.issuedInPeriod}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Expiring in 30 days</p>
+                <p className="text-xl font-semibold">{summary.licenses.expiringSoon}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Suspended</p>
+                <p className="text-xl font-semibold">{summary.licenses.suspended}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="finance" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="Payment status"
+            description="Payments created in the selected period"
+            data={toRecordEntries(summary.finance.byStatus)}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Finance summary</CardTitle>
+              <CardDescription>Revenue uses paidAt within the selected range</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Revenue</p>
+                <p className="text-xl font-semibold">
+                  {formatMoney(summary.finance.revenue, summary.finance.currency)}
+                </p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Paid</p>
+                <p className="text-xl font-semibold">{summary.finance.paidCount}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xl font-semibold">{summary.finance.pending}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Overdue</p>
+                <p className="text-xl font-semibold">{summary.finance.overdue}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="inspections" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="Inspection status"
+            description="Inspections scheduled in the selected period"
+            data={toRecordEntries(summary.inspections.byStatus)}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Results & violations</CardTitle>
+              <CardDescription>Outcomes and open findings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <BreakdownList
+                title="By result"
+                items={toRecordEntries(summary.inspections.byResult)}
+              />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Violations</p>
+                  <p className="text-xl font-semibold">
+                    {summary.inspections.violations.total}
+                  </p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Open</p>
+                  <p className="text-xl font-semibold">
+                    {summary.inspections.violations.open}
+                  </p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Resolved</p>
+                  <p className="text-xl font-semibold">
+                    {summary.inspections.violations.resolved}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="complaints" className="grid gap-4 lg:grid-cols-2">
+          <StatusChart
+            title="Complaint status"
+            description="Complaints opened in the selected period"
+            data={toRecordEntries(summary.complaints.byStatus)}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Complaint categories</CardTitle>
+              <CardDescription>Volume by category</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Regular Hours</TableHead>
-                    <TableHead>Overtime Hours</TableHead>
-                    <TableHead>Total Hours</TableHead>
-                    <TableHead>Utilization</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {timesheetData.map((employee) => (
-                    <TableRow key={employee.employee}>
-                      <TableCell className="font-medium">
-                        {employee.employee}
-                      </TableCell>
-                      <TableCell>{employee.regularHours}h</TableCell>
-                      <TableCell>{employee.overtimeHours}h</TableCell>
-                      <TableCell className="font-bold">
-                        {employee.totalHours}h
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{
-                                width: `${(employee.totalHours / 180) * 100}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium">
-                            {Math.round((employee.totalHours / 180) * 100)}%
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <BreakdownList
+                title="By category"
+                items={toRecordEntries(summary.complaints.byCategory)}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <Card>
+            <CardHeader>
+              <CardTitle>Digital archive</CardTitle>
+              <CardDescription>Documents uploaded in the selected period</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-md border p-4">
+                <p className="text-xs text-muted-foreground">Total uploads</p>
+                <p className="mt-1 text-2xl font-semibold">{summary.documents.total}</p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="text-xs text-muted-foreground">Trader documents</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {summary.documents.traderDocuments}
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="text-xs text-muted-foreground">Business documents</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {summary.documents.businessDocuments}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

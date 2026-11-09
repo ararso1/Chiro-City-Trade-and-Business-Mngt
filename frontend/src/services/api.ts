@@ -83,6 +83,88 @@ export const api = {
       generatedAt: string;
       fiscalYear: { label: string; calendarType: string } | null;
     }>('/reports/dashboard'),
+    summary: (params?: { from?: string; to?: string; all?: boolean }) =>
+      request<{
+        period: { from: string | null; to: string | null; label: string };
+        fiscalYear: { label: string; calendarType: string } | null;
+        generatedAt: string;
+        overview: {
+          traders: number;
+          businesses: number;
+          licenses: number;
+          revenue: number;
+          paidPayments: number;
+          openComplaints: number;
+          openViolations: number;
+          inspections: number;
+          documents: number;
+        };
+        traders: {
+          total: number;
+          byStatus: Record<string, number>;
+          byCategory: Record<string, number>;
+          active: number;
+          submitted: number;
+          draft: number;
+          suspended: number;
+          closed: number;
+        };
+        businesses: {
+          total: number;
+          byStatus: Record<string, number>;
+          byCategory: Record<string, number>;
+          active: number;
+          pending: number;
+          suspended: number;
+          closed: number;
+        };
+        licenses: {
+          total: number;
+          issuedInPeriod: number;
+          active: number;
+          expired: number;
+          expiringSoon: number;
+          suspended: number;
+        };
+        finance: {
+          revenue: number;
+          paidCount: number;
+          pending: number;
+          overdue: number;
+          partial: number;
+          byStatus: Record<string, number>;
+          currency: string;
+        };
+        inspections: {
+          total: number;
+          byStatus: Record<string, number>;
+          byResult: Record<string, number>;
+          scheduled: number;
+          conducted: number;
+          cancelled: number;
+          violations: { total: number; open: number; resolved: number };
+        };
+        complaints: {
+          total: number;
+          byStatus: Record<string, number>;
+          byCategory: Record<string, number>;
+          open: number;
+          inProgress: number;
+          resolved: number;
+          closed: number;
+        };
+        documents: {
+          total: number;
+          traderDocuments: number;
+          businessDocuments: number;
+        };
+      }>('/reports/summary', {
+        params: {
+          from: params?.from ?? '',
+          to: params?.to ?? '',
+          all: params?.all ? '1' : '',
+        },
+      }),
     exportSummary: (from?: string, to?: string) =>
       request<{ period: object; tradersRegistered: number; businessesRegistered: number; totalPayments: number; totalRevenue: number }>(
         '/reports/export-summary',

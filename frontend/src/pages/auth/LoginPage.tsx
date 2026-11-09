@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import { Building2, Chrome, Github, Loader2 } from 'lucide-react';
+import { Chrome, Github, Loader2 } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -76,11 +76,15 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md space-y-8" data-id="hjwo2jiph" data-path="src/pages/LoginPage.tsx">
         {/* Logo and Header */}
         <div className="text-center" data-id="oq8qgjhxk" data-path="src/pages/LoginPage.tsx">
-          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center mb-4" data-id="wkufmetdd" data-path="src/pages/LoginPage.tsx">
-            <Building2 className="h-8 w-8 text-white" data-id="famyievx9" data-path="src/pages/LoginPage.tsx" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Chiro City Trade</h1>
-          <p className="text-gray-600 mt-2">Trader & Business Management â€” Sign in</p>
+          <img
+            src="/logo-chiro-192.png"
+            alt="Chiro City Administration"
+            className="mx-auto h-20 w-20 rounded-full object-cover mb-4"
+            data-id="wkufmetdd"
+            data-path="src/pages/LoginPage.tsx"
+          />
+          <h1 className="text-3xl font-bold text-gray-900">Chiro City</h1>
+          <p className="text-gray-600 mt-2">Trade & Business Management — Sign in</p>
         </div>
 
         <Card className="shadow-lg" data-id="nn7m6b787" data-path="src/pages/LoginPage.tsx">
