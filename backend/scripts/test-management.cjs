@@ -1,3 +1,7 @@
+const {IdentityLifecycle}=require('../dist/src/modules/auth/identity-lifecycle');
+IdentityLifecycle.prototype.visibleWhere=async()=>({});
+IdentityLifecycle.prototype.setEnabled=async()=>{};
+IdentityLifecycle.prototype.deleteUser=async()=>{};
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {ConfigService}=require('@nestjs/config');

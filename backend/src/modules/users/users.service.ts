@@ -1,3 +1,4 @@
+import { IdentityLifecycle } from '../auth/identity-lifecycle';
 import {
   Injectable,
   NotFoundException,
@@ -36,6 +37,7 @@ export class UsersService {
   }
   async findAll() {
     return this.prisma.user.findMany({
+      where: authConfig().mode === "keycloak" ? await new IdentityLifecycle(authConfig()).visibleWhere() : {},
       select,
       orderBy: { createdAt: "desc" },
     });
@@ -185,6 +187,7 @@ export class UsersService {
           where: { name: access.roles[0] },
         })
       : null;
+    if (authConfig().mode === 'keycloak' && dto.isActive !== undefined) await new IdentityLifecycle(authConfig()).setEnabled(identity.keycloakSub, identity.keycloakIssuer, dto.isActive);
     return this.prisma.user.update({
       where: { id },
       data: {
@@ -204,6 +207,10 @@ export class UsersService {
   }
   async remove(id: string, actor: any) {
     await this.update(id, { isActive: false }, actor);
-    return { message: "Account deactivated; business records retained." };
+    if (authConfig().mode === "keycloak") {
+      const identity = await this.prisma.user.findUniqueOrThrow({ where: { id } });
+      await new IdentityLifecycle(authConfig()).deleteUser(identity.keycloakSub, identity.keycloakIssuer);
+    }
+    return { message: "Central account deleted; business records retained." };
   }
 }

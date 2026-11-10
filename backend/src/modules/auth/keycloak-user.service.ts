@@ -1,3 +1,4 @@
+import { IdentityLifecycle } from './identity-lifecycle';
 import { grants } from './access';
 import { Injectable, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -15,6 +16,7 @@ export class KeycloakUserService {
   const roleName=access.roles[0];
   if(payload.email_verified!==true) throw new ForbiddenException('Verify your email address in Chiro Auth before accessing CCTBM.');
   if(typeof payload.email!=='string' || payload.email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new ForbiddenException('A valid email is required.');
+    await new IdentityLifecycle(cfg).assertActive(payload.sub);
   const role=await this.prisma.role.findUnique({where:{name:roleName}});
   if(!role) throw new ForbiddenException('Application role is not configured.');
   let user=await this.prisma.user.findUnique({where:{keycloakSub:payload.sub}});
