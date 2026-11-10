@@ -35,7 +35,7 @@ jobs:
               if (me.status() !== 401) throw new Error('Anonymous identity request must be rejected');
               const local = await page.request.post('https://cctbm-api.chirocity.gov.et/auth/login', { data: {email:'nobody@example.com',password:'invalid-probe-123'} });
               if (local.status() !== 403) throw new Error('Local login is still enabled');
-              const tokenProbe = await page.request.post('https://auth.chirocity.gov.et/realms/chirocity/protocol/openid-connect/token', {
+              const tokenProbe = await page.request.post('https://auth.chirocity.gov.et/realms/cctbm/protocol/openid-connect/token', {
                 headers: { Origin: 'https://cctbm.chirocity.gov.et' },
                 form: { client_id: 'cctbm-web', grant_type: 'authorization_code', code: 'invalid-preflight-probe', redirect_uri: 'https://cctbm.chirocity.gov.et/login' }
               });

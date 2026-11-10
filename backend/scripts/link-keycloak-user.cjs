@@ -1,19 +1,31 @@
-const {PrismaClient}=require('@prisma/client');
-const p=new PrismaClient();
-(async()=>{
- const email=process.env.LINK_EMAIL, subject=process.env.LINK_SUBJECT;
- if(!email || !subject || !/^[0-9a-f-]{36}$/i.test(subject))throw new Error('Supply LINK_EMAIL and LINK_SUBJECT.');
- const issuer=(process.env.KEYCLOAK_URL || 'https://auth.chirocity.gov.et').replace(/\/$/,'')+'/realms/'+(process.env.KEYCLOAK_REALM || 'chirocity');
- await p.$transaction(async tx=>{
-  const matches=await tx.user.findMany({where:{email:{equals:email,mode:'insensitive'}}});
-  if(matches.length>1)throw new Error('Multiple accounts use this email; resolve explicitly.');
-  const linked=await tx.user.findUnique({where:{keycloakSub:subject}});
-  if(linked && (linked.email.toLowerCase()!==email.toLowerCase() || linked.keycloakIssuer!==issuer))throw new Error('Subject is already linked to another identity.');
-  const user=linked || matches[0];
-  if(user && (!user.isActive || (user.keycloakSub && user.keycloakSub!==subject)))throw new Error('Account disabled or already linked.');
-  const role=await tx.role.findUniqueOrThrow({where:{name:'admin'}});
-  const data={keycloakSub:subject,keycloakIssuer:issuer,roleId:role.id,passwordHash:'!chiro-auth-only'};
-  const result=user ? await tx.user.update({where:{id:user.id},data}) : await tx.user.create({data:{...data,email:email.toLowerCase(),name:'City Administrator'}});
-  console.log('Keycloak administrator linked. Local ID:',result.id);
- });
-})().catch(e=>{console.error(e.message);process.exitCode=1}).finally(()=>p.$disconnect());
+// Run only after independently verifying the Keycloak user ID in its admin console.
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+(async () => {
+  const email = process.env.LINK_EMAIL;
+  const subject = process.env.KEYCLOAK_SUB;
+  const issuer = `${(process.env.KEYCLOAK_URL || 'https://auth.chirocity.gov.et').replace(/\/$/, '')}/realms/${process.env.KEYCLOAK_REALM || 'cctbm'}`;
+  if (!email || !subject) throw new Error('Provide LINK_EMAIL and KEYCLOAK_SUB from the Keycloak user details.');
+  if (subject.startsWith('REPLACE_')) throw new Error('Replace the placeholder with the verified Keycloak user ID.');
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  if (!user) {
+    console.log('No existing CCTBM account has that email. A new profile will be provisioned on the first authorized Chiro Auth login.');
+    return;
+  }
+  const previousSub = process.env.PREVIOUS_KEYCLOAK_SUB;
+  const previousIssuer = process.env.PREVIOUS_KEYCLOAK_ISSUER;
+  if (!!previousSub !== !!previousIssuer) throw new Error('Provide both previous subject and issuer for a migration.');
+  if (user.keycloakSub) {
+    if (user.keycloakSub === subject && user.keycloakIssuer === issuer) {
+      console.log('This CCTBM user is already linked.'); return;
+    }
+    if (user.keycloakSub !== previousSub || user.keycloakIssuer !== previousIssuer) throw new Error('This CCTBM account is linked to another identity. Migration requires matching PREVIOUS_KEYCLOAK_SUB and PREVIOUS_KEYCLOAK_ISSUER.');
+  }
+  if (await prisma.user.findUnique({ where: { keycloakSub: subject } })) throw new Error('This Keycloak identity is already linked to another CCTBM user.');
+  const result = await prisma.user.updateMany({
+    where: { id: user.id, keycloakSub: user.keycloakSub, keycloakIssuer: user.keycloakIssuer },
+    data: { keycloakSub: subject, keycloakIssuer: issuer },
+  });
+  if (result.count !== 1) throw new Error('The account changed during linking. Retry after reviewing its current identity.');
+  console.log('CCTBM account linked. Existing user ID and records preserved. Roles are enforced from Keycloak tokens.');
+})().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(() => prisma.$disconnect());
