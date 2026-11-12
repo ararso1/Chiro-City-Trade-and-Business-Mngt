@@ -13,6 +13,7 @@ export function initializeAuth(): Promise<void> {
     if (authSettings.mode === 'keycloak') {
       for (const key of ['chiro_trade_token']) localStorage.removeItem(key);
       client = new Keycloak({ url: authSettings.url, realm: authSettings.realm, clientId: authSettings.clientId });
+      configureDashboardBroker(client);
       await client.init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false, redirectUri: `${location.origin}/login`, responseMode: 'query' });
     }
   })();
@@ -31,4 +32,13 @@ export async function signIn(register = false) {
 }
 export async function signOut() {
   if (client) await client.logout({ redirectUri: `${location.origin}/login` });
+}
+
+// The dashboard may select this fixed provider. This is routing only: the
+// target realm still verifies the identity and grants its own client roles.
+function configureDashboardBroker(client: Keycloak) {
+  const search = typeof window === 'undefined' ? '' : window.location.search;
+  if (!search || new URLSearchParams(search).get('chiro_idp') !== 'dashboard-sso') return;
+  const login = client.login.bind(client);
+  client.login = (options = {}) => login({ ...options, idpHint: 'dashboard-sso', prompt: 'login' });
 }
