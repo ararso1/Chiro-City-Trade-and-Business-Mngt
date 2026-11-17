@@ -1,3 +1,5 @@
+const {IdentityLifecycle}=require('../dist/src/modules/auth/identity-lifecycle');
+IdentityLifecycle.prototype.assertActive=async()=>{}; // Existing JWT tests; lifecycle has separate coverage.
 const {test,before,after}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');

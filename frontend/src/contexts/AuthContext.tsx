@@ -1,10 +1,11 @@
+import CentralAuthGate from '@/components/CentralAuthGate';
 import {
   isCentralAuth,
   hasCentralSession,
   signIn,
   signOut,
 } from "@/services/chiroAuth";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { api, setAuthToken } from "@/services/api";
 
 export type UserRole = string;
@@ -21,7 +22,7 @@ interface AuthContextType {
   authError: string;
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   hasPermission: (permission: string) => boolean;
   isLoading: boolean;
@@ -37,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [authError, setAuthError] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const signingOut = useRef(false);
 
   const refreshProfile = async () => {
     const token = isCentralAuth()
@@ -69,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     refreshProfile();
     const clear = () => {
       setUser(null);
-      setIsLoading(false);
+      if (!signingOut.current) setIsLoading(false);
     };
     window.addEventListener("cctbm:unauthorized", clear);
     return () => window.removeEventListener("cctbm:unauthorized", clear);
@@ -99,10 +101,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const logout = () => {
-    setAuthToken(null);
-    setUser(null);
-    if (isCentralAuth()) void signOut();
+  const logout = async () => {
+    signingOut.current = true;
+    setIsLoading(true);
+    try {
+      if (isCentralAuth()) await signOut();
+      setAuthToken(null);
+      setUser(null);
+      if (!isCentralAuth()) setIsLoading(false);
+    } catch (error) {
+      signingOut.current = false;
+      setAuthError(error instanceof Error ? error.message : 'Unable to sign out.');
+      setIsLoading(false);
+    }
   };
 
   const hasPermission = (permission: string): boolean => {
@@ -137,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     refreshProfile,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <CentralAuthGate active={isCentralAuth()} loading={isLoading} authenticated={!!user} error={authError} onSignOut={logout}><AuthContext.Provider value={value}>{children}</AuthContext.Provider></CentralAuthGate>;
 };
 
 export const useAuth = () => {

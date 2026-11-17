@@ -22,7 +22,6 @@ jobs:
             cd "${{ secrets.VPS_APP_DIR || '/var/www/Chiro-City-Trade-and-Business-Mngt' }}"
             compose() { docker compose --env-file .env -f docker-compose.yml -f docker-compose.domains.yml "$@"; }
             compose exec -T cctbm-api npx prisma migrate status
-            compose exec -T -e LINK_EMAIL=cctbm@chirocity.gov.et -e LINK_SUBJECT=783bff22-e55e-4c8d-b6db-cd9884823ea0 cctbm-api node scripts/link-keycloak-user.cjs
             mkdir -p /srv/cctbm-backups
             chmod 700 /srv/cctbm-backups
             backup="/srv/cctbm-backups/env-before-auth-$(date +%Y%m%d-%H%M%S)"
@@ -37,7 +36,7 @@ jobs:
             python3 - <<'PY'
             from pathlib import Path
             p=Path('.env')
-            updates={'AUTH_MODE':'keycloak','KEYCLOAK_URL':'https://auth.chirocity.gov.et','KEYCLOAK_REALM':'chirocity','KEYCLOAK_CLIENT_ID':'cctbm-web','KEYCLOAK_AUDIENCE':'cctbm-api'}
+            updates={'AUTH_MODE':'keycloak','KEYCLOAK_URL':'https://auth.chirocity.gov.et','KEYCLOAK_REALM':'cctbm','KEYCLOAK_CLIENT_ID':'cctbm-web','KEYCLOAK_AUDIENCE':'cctbm-api'}
             lines=p.read_text().splitlines()
             lines=[line for line in lines if line.split('=',1)[0] not in updates]
             p.write_text('\n'.join(lines+[k+'='+v for k,v in updates.items()])+'\n')
