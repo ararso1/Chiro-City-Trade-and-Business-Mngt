@@ -35,9 +35,9 @@ NestJS + Prisma + PostgreSQL backend for the Chiro City Trader & Business Manage
 
 | Email                 | Password    | Role    |
 |-----------------------|------------|---------|
-| admin@chirocity.com   | password123| admin   |
-| officer@chirocity.com | password123| officer |
-| finance@chirocity.com | password123| finance |
+| admin@chirocity.gov.et   | password123| admin   |
+| officer@chirocity.gov.et | password123| officer |
+| finance@chirocity.gov.et | password123| finance |
 
 ## Roles & permissions
 

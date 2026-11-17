@@ -134,36 +134,56 @@ async function main() {
   }
 
   const hash = await bcrypt.hash('password123', 10);
-  await prisma.user.upsert({
-    where: { email: 'admin@chirocity.com' },
-    create: {
-      email: 'admin@chirocity.com',
-      passwordHash: hash,
+  const seedUsers = [
+    {
+      email: 'admin@chirocity.gov.et',
+      legacyEmails: ['admin@chirocity.com', 'admin@chiro.gov.et'],
       name: 'Chiro City Admin',
       roleId: adminRole.id,
     },
-    update: {},
-  });
-  await prisma.user.upsert({
-    where: { email: 'officer@chirocity.com' },
-    create: {
-      email: 'officer@chirocity.com',
-      passwordHash: hash,
+    {
+      email: 'officer@chirocity.gov.et',
+      legacyEmails: ['officer@chirocity.com'],
       name: 'Registration Officer',
       roleId: officerRole.id,
     },
-    update: {},
-  });
-  await prisma.user.upsert({
-    where: { email: 'finance@chirocity.com' },
-    create: {
-      email: 'finance@chirocity.com',
-      passwordHash: hash,
+    {
+      email: 'finance@chirocity.gov.et',
+      legacyEmails: ['finance@chirocity.com'],
       name: 'Finance Officer',
       roleId: financeRole.id,
     },
-    update: {},
-  });
+  ];
+
+  for (const seedUser of seedUsers) {
+    const existing =
+      (await prisma.user.findUnique({ where: { email: seedUser.email } })) ??
+      (await prisma.user.findFirst({
+        where: { email: { in: seedUser.legacyEmails } },
+      }));
+
+    if (existing) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          email: seedUser.email,
+          name: seedUser.name,
+          passwordHash: hash,
+          roleId: seedUser.roleId,
+          isActive: true,
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          email: seedUser.email,
+          passwordHash: hash,
+          name: seedUser.name,
+          roleId: seedUser.roleId,
+        },
+      });
+    }
+  }
 
   // Default tax type
   await prisma.taxType.upsert({

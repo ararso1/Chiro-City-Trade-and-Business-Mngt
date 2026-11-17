@@ -29,10 +29,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Archive, Download, FileUp, Loader2, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Archive, Check, ChevronsUpDown, Download, FileUp, Loader2, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { api, getApiBase, getAuthToken } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const DOC_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'id_copy', label: 'ID copy' },
@@ -61,17 +71,17 @@ export default function ArchivePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [traders, setTraders] = useState<any[]>([]);
-  const [businesses, setBusinesses] = useState<any[]>([]);
+  const [traderSearch, setTraderSearch] = useState('');
+  const [traderPickerOpen, setTraderPickerOpen] = useState(false);
+  const [traderSearchLoading, setTraderSearchLoading] = useState(false);
+  const [selectedTrader, setSelectedTrader] = useState<{
+    id: string;
+    fullName: string;
+    tin?: string | null;
+  } | null>(null);
   const [scope, setScope] = useState<'trader' | 'business'>('trader');
-  const [upload, setUpload] = useState<{ traderId: string; type: string; name: string; file: File | null }>({
+  const [upload, setUpload] = useState<{ traderId: string; name: string; file: File | null }>({
     traderId: '',
-    type: 'id_copy',
-    name: '',
-    file: null,
-  });
-  const [uploadBiz, setUploadBiz] = useState<{ businessId: string; type: string; name: string; file: File | null }>({
-    businessId: '',
-    type: 'id_copy',
     name: '',
     file: null,
   });
@@ -100,10 +110,30 @@ export default function ArchivePage() {
   };
 
   useEffect(() => {
-    // preload traders list for uploads (small)
-    api.traders.list({ take: 200 }).then((r) => setTraders(r.items)).catch(() => {});
-    api.businesses.list({ take: 200 }).then((r) => setBusinesses(r.items)).catch(() => {});
-  }, []);
+    if (!uploadOpen) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setTraderSearchLoading(true);
+      api.traders
+        .list({
+          search: traderSearch.trim() || undefined,
+          take: 50,
+        })
+        .then((r) => {
+          if (!cancelled) setTraders(r.items);
+        })
+        .catch(() => {
+          if (!cancelled) setTraders([]);
+        })
+        .finally(() => {
+          if (!cancelled) setTraderSearchLoading(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [uploadOpen, traderSearch]);
 
   const traderDocs = useMemo(() => result?.traderDocuments ?? [], [result]);
 
@@ -128,35 +158,34 @@ export default function ArchivePage() {
     URL.revokeObjectURL(url);
   };
 
+  const resetUploadForm = () => {
+    setUpload({ traderId: '', name: '', file: null });
+    setSelectedTrader(null);
+    setTraderSearch('');
+    setTraderPickerOpen(false);
+  };
+
   const doUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
     try {
-      if (scope === 'trader') {
-        if (!upload.traderId || !upload.type || !upload.file) {
-          toast({ title: 'Missing fields', description: 'Trader, type and file are required.', variant: 'destructive' });
-          return;
-        }
-        await api.documents.uploadTrader(upload.traderId, {
-          type: upload.type,
-          name: upload.name || undefined,
-          file: upload.file,
+      if (!upload.traderId || !upload.name.trim() || !upload.file) {
+        toast({
+          title: 'Missing fields',
+          description: 'Trader, document name and file are required.',
+          variant: 'destructive',
         });
-      } else {
-        if (!uploadBiz.businessId || !uploadBiz.type || !uploadBiz.file) {
-          toast({ title: 'Missing fields', description: 'Business, type and file are required.', variant: 'destructive' });
-          return;
-        }
-        await api.documents.uploadBusiness(uploadBiz.businessId, {
-          type: uploadBiz.type,
-          name: uploadBiz.name || undefined,
-          file: uploadBiz.file,
-        });
+        return;
       }
-      toast({ title: 'Uploaded', description: `Document was attached to the ${scope}.` });
+      await api.documents.uploadTrader(upload.traderId, {
+        type: 'other',
+        name: upload.name.trim(),
+        file: upload.file,
+      });
+      toast({ title: 'Uploaded', description: 'Document was attached to the trader.' });
       setUploadOpen(false);
-      setUpload({ traderId: '', type: 'id_copy', name: '', file: null });
-      setUploadBiz({ businessId: '', type: 'id_copy', name: '', file: null });
+      resetUploadForm();
+      if (scope === 'trader') await loadList();
       await search();
     } catch (e2) {
       toast({ title: 'Error', description: (e2 as Error).message, variant: 'destructive' });
@@ -476,91 +505,101 @@ export default function ArchivePage() {
         </CardContent>
       </Card>
 
-      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+      <Dialog
+        open={uploadOpen}
+        onOpenChange={(open) => {
+          setUploadOpen(open);
+          if (!open) resetUploadForm();
+        }}
+      >
         <DialogContent className="max-w-lg border-[hsl(var(--app-flow-border))]">
           <DialogHeader>
             <DialogTitle>Upload trader document</DialogTitle>
-            <DialogDescription>Attach a document to a trader profile. Files are stored securely on the server.</DialogDescription>
+            <DialogDescription>
+              Attach a document to a trader profile. Files are stored securely on the server.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={doUpload} className="space-y-4">
             <div className="space-y-2">
-              <Label>Attach to *</Label>
-              <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-                <SelectTrigger className="border-[hsl(var(--app-flow-border))]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trader">Trader</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Trader *</Label>
+              <Popover modal open={traderPickerOpen} onOpenChange={setTraderPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={traderPickerOpen}
+                    className="w-full justify-between border-[hsl(var(--app-flow-border))] font-normal"
+                  >
+                    <span className="truncate">
+                      {selectedTrader
+                        ? `${selectedTrader.fullName}${
+                            selectedTrader.tin ? ` · TIN ${selectedTrader.tin}` : ''
+                          }`
+                        : 'Search trader by name or TIN'}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="z-[80] w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name or TIN..."
+                      value={traderSearch}
+                      onValueChange={setTraderSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {traderSearchLoading ? 'Searching traders…' : 'No trader found.'}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {traders.map((t) => (
+                          <CommandItem
+                            key={t.id}
+                            value={`${t.fullName} ${t.tin ?? ''}`}
+                            onSelect={() => {
+                              setUpload((u) => ({ ...u, traderId: t.id }));
+                              setSelectedTrader({
+                                id: t.id,
+                                fullName: t.fullName,
+                                tin: t.tin,
+                              });
+                              setTraderPickerOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                upload.traderId === t.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{t.fullName}</div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {t.tin ? `TIN ${t.tin}` : 'No TIN'}
+                                {t.phone ? ` · ${t.phone}` : ''}
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
-              <Label>{scope === 'trader' ? 'Trader *' : 'Business *'}</Label>
-              {scope === 'trader' ? (
-                <Select value={upload.traderId} onValueChange={(v) => setUpload((u) => ({ ...u, traderId: v }))}>
-                  <SelectTrigger className="border-[hsl(var(--app-flow-border))]">
-                    <SelectValue placeholder="Select trader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {traders.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Select value={uploadBiz.businessId} onValueChange={(v) => setUploadBiz((u) => ({ ...u, businessId: v }))}>
-                  <SelectTrigger className="border-[hsl(var(--app-flow-border))]">
-                    <SelectValue placeholder="Select business" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {businesses.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Type *</Label>
-                <Select
-                  value={scope === 'trader' ? upload.type : uploadBiz.type}
-                  onValueChange={(v) =>
-                    scope === 'trader'
-                      ? setUpload((u) => ({ ...u, type: v }))
-                      : setUploadBiz((u) => ({ ...u, type: v }))
-                  }
-                >
-                  <SelectTrigger className="border-[hsl(var(--app-flow-border))]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DOC_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Display name</Label>
-                <Input
-                  value={scope === 'trader' ? upload.name : uploadBiz.name}
-                  className="border-[hsl(var(--app-flow-border))]"
-                  onChange={(e) =>
-                    scope === 'trader'
-                      ? setUpload((u) => ({ ...u, name: e.target.value }))
-                      : setUploadBiz((u) => ({ ...u, name: e.target.value }))
-                  }
-                  placeholder="Optional"
-                />
-              </div>
+              <Label>Document name *</Label>
+              <Input
+                value={upload.name}
+                className="border-[hsl(var(--app-flow-border))]"
+                onChange={(e) => setUpload((u) => ({ ...u, name: e.target.value }))}
+                placeholder="Enter document name"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>File *</Label>
@@ -568,15 +607,18 @@ export default function ArchivePage() {
                 type="file"
                 className="border-[hsl(var(--app-flow-border))]"
                 onChange={(e) =>
-                  scope === 'trader'
-                    ? setUpload((u) => ({ ...u, file: e.target.files?.[0] ?? null }))
-                    : setUploadBiz((u) => ({ ...u, file: e.target.files?.[0] ?? null }))
+                  setUpload((u) => ({ ...u, file: e.target.files?.[0] ?? null }))
                 }
               />
               <p className="text-xs text-muted-foreground">Max size: 25MB</p>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setUploadOpen(false)}
+                disabled={uploading}
+              >
                 Cancel
               </Button>
               <Button
@@ -584,7 +626,11 @@ export default function ArchivePage() {
                 disabled={uploading}
                 className="bg-[hsl(var(--app-flow-accent))] text-[hsl(var(--app-flow-accent-foreground))] hover:bg-[hsl(var(--app-flow-accent)/0.92)]"
               >
-                {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />}
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileUp className="h-4 w-4 mr-2" />
+                )}
                 Upload
               </Button>
             </DialogFooter>

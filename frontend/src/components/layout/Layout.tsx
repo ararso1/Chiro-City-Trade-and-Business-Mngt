@@ -1,37 +1,69 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Layout: React.FC = () => {
+  const isMobile = useIsMobile();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isMobile) setIsMobileSidebarOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || !isMobileSidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobile, isMobileSidebarOpen]);
 
   const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
+    if (isMobile) {
+      setIsMobileSidebarOpen((open) => !open);
+      return;
+    }
+    setIsSidebarCollapsed((collapsed) => !collapsed);
   };
 
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
+
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50" data-id="uk9zngm7p" data-path="src/components/layout/Layout.tsx">
-      {/* Sidebar */}
-      <Sidebar isCollapsed={isSidebarCollapsed} data-id="ke46fck4a" data-path="src/components/layout/Layout.tsx" />
-      
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden" data-id="p981qpo8d" data-path="src/components/layout/Layout.tsx">
-        {/* Header */}
+    <div className="h-screen flex overflow-hidden bg-gray-50">
+      {isMobile && isMobileSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-black/40"
+          onClick={closeMobileSidebar}
+        />
+      )}
+
+      <Sidebar
+        isCollapsed={!isMobile && isSidebarCollapsed}
+        isMobile={isMobile}
+        isMobileOpen={isMobileSidebarOpen}
+        onNavigate={closeMobileSidebar}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           onToggleSidebar={toggleSidebar}
-          isCollapsed={isSidebarCollapsed} data-id="za2gemxlp" data-path="src/components/layout/Layout.tsx" />
+          isCollapsed={isSidebarCollapsed}
+        />
 
-        
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto" data-id="5ofowlndt" data-path="src/components/layout/Layout.tsx">
-          <div className="p-6" data-id="af3c03i8p" data-path="src/components/layout/Layout.tsx">
-            <Outlet data-id="xz3yrqgpk" data-path="src/components/layout/Layout.tsx" />
+        <main className="flex-1 overflow-auto">
+          <div className="p-4 md:p-6">
+            <Outlet />
           </div>
         </main>
       </div>
-    </div>);
-
+    </div>
+  );
 };
 
 export default Layout;
