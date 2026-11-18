@@ -175,7 +175,7 @@ const LoginPage: React.FC = () => {
 
         {/* Additional Info */}
         <div className="text-center text-xs text-gray-500" data-id="7bfqzi4e3" data-path="src/pages/LoginPage.tsx">
-          <p>Â© Chiro City Trade Management. Powered by Damina Tech.</p>
+          <p>© Chiro City Trade Management. Powered by Damina Tech.</p>
         </div>
       </div>
     </div>);

@@ -1,4 +1,3 @@
-import { getAuthToken } from '@/services/api';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -30,6 +39,7 @@ import {
   Loader2,
   Archive,
   Download,
+  Eye,
   FileUp,
   Trash2,
   Building2,
@@ -45,8 +55,21 @@ import {
   PlayCircle,
   Pencil,
 } from 'lucide-react';
-import { api } from '@/services/api';
+import { api, getApiBase, getAuthToken } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
+import {
+  DOCUMENT_TYPE_OPTIONS,
+  documentTypeLabel,
+  formatFileSize,
+} from '@/lib/documentTypes';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'default';
@@ -123,6 +146,24 @@ export default function TraderDetailPage() {
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState('id_copy');
   const [docName, setDocName] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [edit, setEdit] = useState<{
+    scope: 'trader' | 'business';
+    id: string;
+    name: string;
+    type: string;
+    ownerLabel: string;
+    uploadedAt?: string | null;
+    sizeBytes?: number | null;
+    file: File | null;
+  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    scope: 'trader' | 'business';
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [businessOpen, setBusinessOpen] = useState(false);
   const [businessSaving, setBusinessSaving] = useState(false);
   const [businessForm, setBusinessForm] = useState(emptyBusinessForm);
@@ -136,6 +177,7 @@ export default function TraderDetailPage() {
   const canCreateBusiness = hasPermission('businesses.create');
   const canUpdateBusiness = hasPermission('businesses.update');
   const canUpload = hasPermission('documents.create');
+  const canUpdateDocument = hasPermission('documents.update');
   const canDelete = hasPermission('documents.delete');
 
   useEffect(() => {
@@ -298,19 +340,41 @@ export default function TraderDetailPage() {
     }
   };
 
-  const downloadTraderDoc = async (docId: string, suggestedName?: string) => {
+  const fetchDocumentBlob = async (
+    kind: 'trader' | 'business',
+    docId: string,
+    mode: 'view' | 'download',
+  ) => {
+    const base = getApiBase();
+    const token = await getAuthToken();
+    if (!token) {
+      throw new Error('A valid Chiro Auth access token is required. Sign out and sign in again.');
+    }
+    const path =
+      kind === 'trader'
+        ? `/documents/trader-doc/${docId}/${mode}`
+        : `/documents/business-doc/${docId}/${mode}`;
+    const res = await fetch(`${base}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      if (res.status === 401) window.dispatchEvent(new Event('cctbm:unauthorized'));
+      const err = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(
+        (Array.isArray(err.message) ? err.message.join('\n') : err.message) ||
+          `HTTP ${res.status}`,
+      );
+    }
+    return res.blob();
+  };
+
+  const downloadDocument = async (
+    kind: 'trader' | 'business',
+    docId: string,
+    suggestedName?: string,
+  ) => {
     try {
-      // reuse api base + token via Archive pattern (simple fetch with auth header)
-      const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
-      const token = await getAuthToken();
-      const res = await fetch(`${base}/documents/trader-doc/${docId}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
+      const blob = await fetchDocumentBlob(kind, docId, 'download');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -324,45 +388,132 @@ export default function TraderDetailPage() {
     }
   };
 
-  const downloadBusinessDoc = async (docId: string, suggestedName?: string) => {
+  const viewDocument = async (kind: 'trader' | 'business', docId: string) => {
     try {
-      const base = (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:3003';
-      const token = await getAuthToken();
-      const res = await fetch(`${base}/documents/business-doc/${docId}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
+      const blob = await fetchDocumentBlob(kind, docId, 'view');
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = suggestedName || 'document';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const opened = window.open(url, '_blank');
+      if (!opened) {
+        URL.revokeObjectURL(url);
+        throw new Error('Popup blocked. Allow popups for this site, or use Download.');
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
-      toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' });
+      toast({
+        title: 'Unable to open file',
+        description: (e as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const resetUploadForm = () => {
+    setFile(null);
+    setDocName('');
+    setDocType('id_copy');
+  };
+
+  const openEditDocument = (
+    scope: 'trader' | 'business',
+    doc: any,
+    ownerLabel: string,
+  ) => {
+    if (!canUpdateDocument) return;
+    setEdit({
+      scope,
+      id: doc.id,
+      name: doc.name ?? '',
+      type: doc.type ?? 'other',
+      ownerLabel,
+      uploadedAt: doc.uploadedAt ?? null,
+      sizeBytes: doc.sizeBytes ?? null,
+      file: null,
+    });
+    setEditOpen(true);
+  };
+
+  const saveEditDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!edit) return;
+    if (!edit.name.trim() || !edit.type) {
+      toast({
+        title: 'Missing fields',
+        description: 'Document type and document name are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const payload = {
+        name: edit.name.trim(),
+        type: edit.type,
+        file: edit.file,
+      };
+      if (edit.scope === 'trader') {
+        await api.documents.updateTraderDoc(edit.id, payload);
+      } else {
+        await api.documents.updateBusinessDoc(edit.id, payload);
+      }
+      toast({
+        title: 'Updated',
+        description: edit.file
+          ? 'Document details and file were saved.'
+          : 'Document details were saved.',
+      });
+      setEditOpen(false);
+      setEdit(null);
+      await refresh();
+    } catch (err) {
+      toast({ title: 'Error', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.scope === 'trader') {
+        await api.documents.deleteTraderDoc(deleteTarget.id);
+      } else {
+        await api.documents.deleteBusinessDoc(deleteTarget.id);
+      }
+      toast({ title: 'Deleted', description: 'Document removed.' });
+      setDeleteTarget(null);
+      await refresh();
+    } catch (e) {
+      toast({
+        title: 'Error',
+        description: (e as Error).message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
   const uploadDoc = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !file) {
-      toast({ title: 'Missing file', variant: 'destructive' });
+    if (!id || !file || !docName.trim() || !docType) {
+      toast({
+        title: 'Missing fields',
+        description: 'Document type, document name, and file are required.',
+        variant: 'destructive',
+      });
       return;
     }
     setUploading(true);
     try {
-      await api.documents.uploadTrader(id, { type: docType, name: docName || undefined, file });
-      toast({ title: 'Uploaded', description: 'Document attached to trader.' });
+      await api.documents.uploadTrader(id, {
+        type: docType,
+        name: docName.trim(),
+        file,
+      });
+      toast({ title: 'Document added', description: 'Document attached to trader.' });
       setUploadOpen(false);
-      setFile(null);
-      setDocName('');
-      setDocType('id_copy');
+      resetUploadForm();
       await refresh();
     } catch (err) {
       toast({ title: 'Error', description: (err as Error).message, variant: 'destructive' });
@@ -389,7 +540,7 @@ export default function TraderDetailPage() {
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{trader.fullName}</h1>
                     <p className="text-sm text-white/80">
-                      {[trader.phone, trader.tin].filter(Boolean).join(' Â· ') || 'Trader profile'}
+                      {[trader.phone, trader.tin].filter(Boolean).join(' · ') || 'Trader profile'}
                     </p>
                   </div>
                 </div>
@@ -534,7 +685,7 @@ export default function TraderDetailPage() {
                               <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>{b.status}</Badge>
                               {b.tin && <Badge variant="outline">TIN: {b.tin}</Badge>}
                             </div>
-                            <p className="text-sm text-muted-foreground">{displayValue(b.tradeName || b.type)} Â· {displayValue(b.category)}</p>
+                            <p className="text-sm text-muted-foreground">{displayValue(b.tradeName || b.type)} · {displayValue(b.category)}</p>
                           </div>
                           {(canUpdateBusiness || canUpdateLicense) && (
                             <Button variant="outline" size="sm" onClick={() => openEditBusinessDialog(b)}>
@@ -714,158 +865,417 @@ export default function TraderDetailPage() {
 
         <TabsContent value="documents" className="mt-4">
           <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <CardTitle>Documents</CardTitle>
-                <CardDescription>Trader documents + business documents under this trader</CardDescription>
+                <CardDescription>
+                  Trader and business documents linked to this profile
+                </CardDescription>
               </div>
               {canUpload && (
                 <Button onClick={() => setUploadOpen(true)}>
-                  <FileUp className="h-4 w-4 mr-2" /> Upload
+                  <FileUp className="h-4 w-4 mr-2" /> Add Document
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Archive className="h-4 w-4 text-muted-foreground" /> Trader documents ({trader.documents?.length ?? 0})
-                  </div>
-                  {trader.documents?.length ? (
-                    <div className="space-y-2">
-                      {trader.documents.map((d: any) => (
-                        <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{d.name}</div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {d.type} Â· {formatDate(d.uploadedAt)}
-                              {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Button variant="outline" size="icon" onClick={() => downloadTraderDoc(d.id, d.name)}>
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            {canDelete && (
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={async () => {
-                                  try {
-                                    await api.documents.deleteTraderDoc(d.id);
-                                    toast({ title: 'Deleted', description: 'Document removed.' });
-                                    refresh();
-                                  } catch (e) {
-                                    toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' });
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No trader documents</p>
-                  )}
+            <CardContent className="space-y-8">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Archive className="h-4 w-4 text-muted-foreground" />
+                  Trader documents ({trader.documents?.length ?? 0})
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Building2 className="h-4 w-4 text-muted-foreground" /> Business documents
-                  </div>
-                  {trader.businesses?.some((b: any) => (b.documents?.length ?? 0) > 0) ? (
-                    <div className="space-y-3">
-                      {trader.businesses?.flatMap((b: any) =>
-                        (b.documents ?? []).map((d: any) => (
-                          <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                            <div className="min-w-0">
-                              <div className="font-medium truncate">{d.name}</div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {b.name} Â· {d.type} Â· {formatDate(d.uploadedAt)}
-                                {d.sizeBytes ? ` Â· ${(d.sizeBytes / 1024).toFixed(0)} KB` : ''}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button variant="outline" size="icon" onClick={() => downloadBusinessDoc(d.id, d.name)}>
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              {canDelete && (
+                {trader.documents?.length ? (
+                  <div className="overflow-hidden rounded-xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Document name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Uploaded</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {trader.documents.map((d: any) => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-medium max-w-[220px] truncate">
+                              {d.name}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{documentTypeLabel(d.type)}</Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {formatDate(d.uploadedAt)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatFileSize(d.sizeBytes)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => viewDocument('trader', d.id)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" /> View
+                                </Button>
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={async () => {
-                                    try {
-                                      await api.documents.deleteBusinessDoc(d.id);
-                                      toast({ title: 'Deleted', description: 'Document removed.' });
-                                      refresh();
-                                    } catch (e) {
-                                      toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' });
-                                    }
-                                  }}
+                                  onClick={() => downloadDocument('trader', d.id, d.name)}
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Download className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </div>
-                          </div>
-                        )),
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No business documents</p>
-                  )}
+                                {canUpdateDocument && (
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() =>
+                                      openEditDocument(
+                                        'trader',
+                                        d,
+                                        trader.fullName || 'Trader',
+                                      )
+                                    }
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() =>
+                                      setDeleteTarget({
+                                        scope: 'trader',
+                                        id: d.id,
+                                        name: d.name,
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                    No trader documents yet
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Business documents
                 </div>
+                {trader.businesses?.some((b: any) => (b.documents?.length ?? 0) > 0) ? (
+                  <div className="overflow-hidden rounded-xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Document name</TableHead>
+                          <TableHead>Business</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Uploaded</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {trader.businesses?.flatMap((b: any) =>
+                          (b.documents ?? []).map((d: any) => (
+                            <TableRow key={d.id}>
+                              <TableCell className="font-medium max-w-[200px] truncate">
+                                {d.name}
+                              </TableCell>
+                              <TableCell className="max-w-[160px] truncate">{b.name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{documentTypeLabel(d.type)}</Badge>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-muted-foreground">
+                                {formatDate(d.uploadedAt)}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {formatFileSize(d.sizeBytes)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => viewDocument('business', d.id)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" /> View
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => downloadDocument('business', d.id, d.name)}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  {canUpdateDocument && (
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() =>
+                                        openEditDocument('business', d, b.name || 'Business')
+                                      }
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  {canDelete && (
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() =>
+                                        setDeleteTarget({
+                                          scope: 'business',
+                                          id: d.id,
+                                          name: d.name,
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )),
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                    No business documents yet
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-            <DialogContent className="max-w-md">
+          <Dialog
+            open={uploadOpen}
+            onOpenChange={(open) => {
+              setUploadOpen(open);
+              if (!open) resetUploadForm();
+            }}
+          >
+            <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Upload document</DialogTitle>
-                <DialogDescription>Attach a file to this trader profile.</DialogDescription>
+                <DialogTitle>Add Document</DialogTitle>
+                <DialogDescription>
+                  Select a document type and attach a file to this trader profile.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={uploadDoc} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Type *</Label>
+                  <Label>Document type *</Label>
                   <Select value={docType} onValueChange={setDocType}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="id_copy">ID copy</SelectItem>
-                      <SelectItem value="photo">Photo</SelectItem>
-                      <SelectItem value="license">License</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Display name</Label>
-                  <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Optional" />
+                  <Label>Document name *</Label>
+                  <Input
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    placeholder="Enter document name"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>File *</Label>
-                  <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                  <Input
+                    type="file"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Max size: 25MB</p>
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setUploadOpen(false)}
+                    disabled={uploading}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={uploading}>
-                    {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />}
-                    Upload
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileUp className="h-4 w-4 mr-2" />
+                    )}
+                    Add Document
                   </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
+
+          <Dialog
+            open={editOpen}
+            onOpenChange={(open) => {
+              setEditOpen(open);
+              if (!open) setEdit(null);
+            }}
+          >
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Edit Document</DialogTitle>
+                <DialogDescription>
+                  Update the document type and name. Previous values are loaded below.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={saveEditDocument} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{edit?.scope === 'business' ? 'Business' : 'Trader'}</Label>
+                  <Input
+                    value={
+                      edit
+                        ? `${edit.ownerLabel}${
+                            edit.scope === 'trader' && trader?.tin
+                              ? ` · TIN ${trader.tin}`
+                              : ''
+                          }`
+                        : ''
+                    }
+                    disabled
+                    className="bg-muted/40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Document type *</Label>
+                  <Select
+                    value={edit?.type ?? 'other'}
+                    onValueChange={(v) => setEdit((x) => (x ? { ...x, type: v } : x))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Document name *</Label>
+                  <Input
+                    value={edit?.name ?? ''}
+                    onChange={(e) =>
+                      setEdit((x) => (x ? { ...x, name: e.target.value } : x))
+                    }
+                    placeholder="Enter document name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>File</Label>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    Current file: uploaded {formatDate(edit?.uploadedAt)} ·{' '}
+                    {formatFileSize(edit?.sizeBytes)}
+                  </div>
+                  <Input
+                    type="file"
+                    onChange={(e) =>
+                      setEdit((x) =>
+                        x ? { ...x, file: e.target.files?.[0] ?? null } : x,
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {edit?.file
+                      ? `New file selected: ${edit.file.name}`
+                      : 'Optional. Choose a file to replace the current upload (max 25MB).'}
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditOpen(false)}
+                    disabled={savingEdit}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={savingEdit || !edit?.name.trim()}
+                  >
+                    {savingEdit ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Pencil className="h-4 w-4 mr-2" />
+                    )}
+                    Save changes
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove{' '}
+                  <span className="font-medium text-foreground">
+                    {deleteTarget?.name}
+                  </span>
+                  . This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void confirmDeleteDocument();
+                  }}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Delete'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
       </Tabs>
       <Dialog open={!!renewTarget} onOpenChange={(open) => !open && !renewingLicense && setRenewTarget(null)}>

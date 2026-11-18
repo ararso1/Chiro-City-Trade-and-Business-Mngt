@@ -148,21 +148,51 @@ export class DocumentsController {
 
   @Put('trader-doc/:id')
   @RequirePermissions('documents.update')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024 },
+    }),
+  )
   async updateTraderDocMeta(
     @Param('id') id: string,
+    @UploadedFile() file: any,
     @Body() body: { name?: string; type?: string },
     @CurrentUser('sub') userId?: string,
     @Req() req?: Request,
   ) {
     const before = await this.documents.getTraderDocument(id);
-    const updated = await this.documents.updateTraderDocumentMeta(id, body);
+    if (!before) throw new NotFoundException('Document not found');
+    const updated = await this.documents.updateTraderDocument(id, {
+      name: body?.name,
+      type: body?.type,
+      file: file
+        ? {
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+          }
+        : undefined,
+    });
+    if (!updated) throw new NotFoundException('Document not found');
     await this.documents.logAudit({
       userId,
       action: 'update',
       entity: 'TraderDocument',
       entityId: id,
-      oldValue: before ? { name: before.name, type: before.type } : undefined,
-      newValue: { name: updated.name, type: updated.type },
+      oldValue: {
+        name: before.name,
+        type: before.type,
+        filePath: before.filePath,
+        sizeBytes: before.sizeBytes,
+      },
+      newValue: {
+        name: updated.name,
+        type: updated.type,
+        filePath: updated.filePath,
+        sizeBytes: updated.sizeBytes,
+        fileReplaced: Boolean(file),
+      },
       ipAddress: req?.ip,
       userAgent: req?.headers?.['user-agent'] as string | undefined,
     });
@@ -290,21 +320,51 @@ export class DocumentsController {
 
   @Put('business-doc/:id')
   @RequirePermissions('documents.update')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024 },
+    }),
+  )
   async updateBusinessDocMeta(
     @Param('id') id: string,
+    @UploadedFile() file: any,
     @Body() body: { name?: string; type?: string },
     @CurrentUser('sub') userId?: string,
     @Req() req?: Request,
   ) {
     const before = await this.documents.getBusinessDocument(id);
-    const updated = await this.documents.updateBusinessDocumentMeta(id, body);
+    if (!before) throw new NotFoundException('Document not found');
+    const updated = await this.documents.updateBusinessDocument(id, {
+      name: body?.name,
+      type: body?.type,
+      file: file
+        ? {
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+          }
+        : undefined,
+    });
+    if (!updated) throw new NotFoundException('Document not found');
     await this.documents.logAudit({
       userId,
       action: 'update',
       entity: 'BusinessDocument',
       entityId: id,
-      oldValue: before ? { name: before.name, type: before.type } : undefined,
-      newValue: { name: updated.name, type: updated.type },
+      oldValue: {
+        name: before.name,
+        type: before.type,
+        filePath: before.filePath,
+        sizeBytes: before.sizeBytes,
+      },
+      newValue: {
+        name: updated.name,
+        type: updated.type,
+        filePath: updated.filePath,
+        sizeBytes: updated.sizeBytes,
+        fileReplaced: Boolean(file),
+      },
       ipAddress: req?.ip,
       userAgent: req?.headers?.['user-agent'] as string | undefined,
     });

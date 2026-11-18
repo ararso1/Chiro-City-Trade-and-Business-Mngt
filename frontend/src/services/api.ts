@@ -275,10 +275,54 @@ export const api = {
       }
       return res.json();
     },
-    updateTraderDoc: (docId: string, body: { name?: string; type?: string }) =>
-      request<any>('/documents/trader-doc/' + docId, { method: 'PUT', body: JSON.stringify(body) }),
-    updateBusinessDoc: (docId: string, body: { name?: string; type?: string }) =>
-      request<any>('/documents/business-doc/' + docId, { method: 'PUT', body: JSON.stringify(body) }),
+    updateTraderDoc: async (
+      docId: string,
+      body: { name?: string; type?: string; file?: File | null },
+    ) => {
+      const token = await getAuthToken();
+      const fd = new FormData();
+      if (body.name !== undefined) fd.append('name', body.name);
+      if (body.type !== undefined) fd.append('type', body.type);
+      if (body.file) fd.append('file', body.file);
+      const res = await fetch(`${BASE}/documents/trader-doc/${docId}`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
+      if (!res.ok) {
+        if (res.status === 401) window.dispatchEvent(new Event('cctbm:unauthorized'));
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(
+          (Array.isArray(err.message) ? err.message.join('\n') : err.message) ||
+            `HTTP ${res.status}`,
+        );
+      }
+      return res.json();
+    },
+    updateBusinessDoc: async (
+      docId: string,
+      body: { name?: string; type?: string; file?: File | null },
+    ) => {
+      const token = await getAuthToken();
+      const fd = new FormData();
+      if (body.name !== undefined) fd.append('name', body.name);
+      if (body.type !== undefined) fd.append('type', body.type);
+      if (body.file) fd.append('file', body.file);
+      const res = await fetch(`${BASE}/documents/business-doc/${docId}`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
+      if (!res.ok) {
+        if (res.status === 401) window.dispatchEvent(new Event('cctbm:unauthorized'));
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(
+          (Array.isArray(err.message) ? err.message.join('\n') : err.message) ||
+            `HTTP ${res.status}`,
+        );
+      }
+      return res.json();
+    },
     deleteTraderDoc: (docId: string) =>
       request<{ success: boolean; id?: string }>('/documents/trader-doc/' + docId, { method: 'DELETE' }),
     deleteBusinessDoc: (docId: string) =>

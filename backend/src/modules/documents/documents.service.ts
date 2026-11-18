@@ -158,6 +158,88 @@ export class DocumentsService {
     return this.prisma.businessDocument.update({ where: { id }, data });
   }
 
+  async updateTraderDocument(
+    id: string,
+    patch: {
+      name?: string;
+      type?: string;
+      file?: { buffer: Buffer; originalname: string; mimetype: string; size: number };
+    },
+  ) {
+    const existing = await this.prisma.traderDocument.findUnique({ where: { id } });
+    if (!existing) return null;
+
+    const data: any = {};
+    if (patch.name !== undefined) data.name = safeBaseName(patch.name);
+    if (patch.type !== undefined) data.type = patch.type.trim() || 'other';
+
+    if (patch.file) {
+      const dir = path.join(UPLOAD_ROOT, 'traders', existing.traderId);
+      await fs.mkdir(dir, { recursive: true });
+      const ext = path.extname(patch.file.originalname).slice(0, 12);
+      const storedName = `${Date.now()}_${randomUUID()}${ext}`;
+      const absPath = path.join(dir, storedName);
+      await fs.writeFile(absPath, patch.file.buffer);
+      data.filePath = path.relative(process.cwd(), absPath).replace(/\\/g, '/');
+      data.mimeType = patch.file.mimetype;
+      data.sizeBytes = patch.file.size;
+      if (patch.name === undefined) {
+        data.name = safeBaseName(patch.file.originalname);
+      }
+    }
+
+    const updated = await this.prisma.traderDocument.update({ where: { id }, data });
+
+    if (patch.file && existing.filePath) {
+      try {
+        await fs.unlink(path.resolve(process.cwd(), existing.filePath));
+      } catch {}
+    }
+
+    return updated;
+  }
+
+  async updateBusinessDocument(
+    id: string,
+    patch: {
+      name?: string;
+      type?: string;
+      file?: { buffer: Buffer; originalname: string; mimetype: string; size: number };
+    },
+  ) {
+    const existing = await this.prisma.businessDocument.findUnique({ where: { id } });
+    if (!existing) return null;
+
+    const data: any = {};
+    if (patch.name !== undefined) data.name = safeBaseName(patch.name);
+    if (patch.type !== undefined) data.type = patch.type.trim() || 'other';
+
+    if (patch.file) {
+      const dir = path.join(UPLOAD_ROOT, 'businesses', existing.businessId);
+      await fs.mkdir(dir, { recursive: true });
+      const ext = path.extname(patch.file.originalname).slice(0, 12);
+      const storedName = `${Date.now()}_${randomUUID()}${ext}`;
+      const absPath = path.join(dir, storedName);
+      await fs.writeFile(absPath, patch.file.buffer);
+      data.filePath = path.relative(process.cwd(), absPath).replace(/\\/g, '/');
+      data.mimeType = patch.file.mimetype;
+      data.sizeBytes = patch.file.size;
+      if (patch.name === undefined) {
+        data.name = safeBaseName(patch.file.originalname);
+      }
+    }
+
+    const updated = await this.prisma.businessDocument.update({ where: { id }, data });
+
+    if (patch.file && existing.filePath) {
+      try {
+        await fs.unlink(path.resolve(process.cwd(), existing.filePath));
+      } catch {}
+    }
+
+    return updated;
+  }
+
   async list(params: {
     scope: 'trader' | 'business';
     query?: string;
@@ -174,13 +256,21 @@ export class DocumentsService {
       const where: any = {};
       if (params.traderId) where.traderId = params.traderId;
       if (params.type) where.type = params.type;
-      if (q) where.name = { contains: q, mode: 'insensitive' };
+      if (q) {
+        where.OR = [
+          { name: { contains: q, mode: 'insensitive' } },
+          { trader: { fullName: { contains: q, mode: 'insensitive' } } },
+          { trader: { tin: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
       const [items, total] = await Promise.all([
         this.prisma.traderDocument.findMany({
           where,
           skip,
           take,
-          include: { trader: { select: { id: true, fullName: true, email: true } } },
+          include: {
+            trader: { select: { id: true, fullName: true, email: true, tin: true } },
+          },
           orderBy: { uploadedAt: 'desc' },
         }),
         this.prisma.traderDocument.count({ where }),
@@ -190,13 +280,29 @@ export class DocumentsService {
     const where: any = {};
     if (params.businessId) where.businessId = params.businessId;
     if (params.type) where.type = params.type;
-    if (q) where.name = { contains: q, mode: 'insensitive' };
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { business: { name: { contains: q, mode: 'insensitive' } } },
+        { business: { trader: { fullName: { contains: q, mode: 'insensitive' } } } },
+        { business: { trader: { tin: { contains: q, mode: 'insensitive' } } } },
+      ];
+    }
     const [items, total] = await Promise.all([
       this.prisma.businessDocument.findMany({
         where,
         skip,
         take,
-        include: { business: { select: { id: true, name: true, traderId: true } } },
+        include: {
+          business: {
+            select: {
+              id: true,
+              name: true,
+              traderId: true,
+              trader: { select: { id: true, fullName: true, tin: true } },
+            },
+          },
+        },
         orderBy: { uploadedAt: 'desc' },
       }),
       this.prisma.businessDocument.count({ where }),
@@ -249,32 +355,51 @@ export class DocumentsService {
   }
 
   async search(params: { query?: string; type?: string }) {
-    const where: any = {};
+    const q = params.query?.trim();
+    const traderWhere: any = {};
+    const businessWhere: any = {};
     if (params.type) {
-      // Search both trader and business docs by type
-      const traderDocs = await this.prisma.traderDocument.findMany({
-        where: { type: params.type, ...(params.query ? { name: { contains: params.query, mode: 'insensitive' } } : {}) },
-        include: { trader: { select: { fullName: true, email: true } } },
-      });
-      const businessDocs = await this.prisma.businessDocument.findMany({
-        where: { type: params.type, ...(params.query ? { name: { contains: params.query, mode: 'insensitive' } } : {}) },
-        include: { business: { select: { name: true } } },
-      });
-      return { traderDocuments: traderDocs, businessDocuments: businessDocs };
+      traderWhere.type = params.type;
+      businessWhere.type = params.type;
     }
-    if (params.query) {
-      const [traderDocs, businessDocs] = await Promise.all([
-        this.prisma.traderDocument.findMany({
-          where: { name: { contains: params.query, mode: 'insensitive' } },
-          include: { trader: { select: { fullName: true } } },
-        }),
-        this.prisma.businessDocument.findMany({
-          where: { name: { contains: params.query, mode: 'insensitive' } },
-          include: { business: { select: { name: true } } },
-        }),
-      ]);
-      return { traderDocuments: traderDocs, businessDocuments: businessDocs };
+    if (q) {
+      traderWhere.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { trader: { fullName: { contains: q, mode: 'insensitive' } } },
+        { trader: { tin: { contains: q, mode: 'insensitive' } } },
+      ];
+      businessWhere.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { business: { name: { contains: q, mode: 'insensitive' } } },
+        { business: { trader: { fullName: { contains: q, mode: 'insensitive' } } } },
+        { business: { trader: { tin: { contains: q, mode: 'insensitive' } } } },
+      ];
     }
-    return { traderDocuments: [], businessDocuments: [] };
+    if (!params.type && !q) {
+      return { traderDocuments: [], businessDocuments: [] };
+    }
+    const [traderDocuments, businessDocuments] = await Promise.all([
+      this.prisma.traderDocument.findMany({
+        where: traderWhere,
+        include: {
+          trader: { select: { id: true, fullName: true, email: true, tin: true } },
+        },
+        orderBy: { uploadedAt: 'desc' },
+      }),
+      this.prisma.businessDocument.findMany({
+        where: businessWhere,
+        include: {
+          business: {
+            select: {
+              id: true,
+              name: true,
+              trader: { select: { id: true, fullName: true, tin: true } },
+            },
+          },
+        },
+        orderBy: { uploadedAt: 'desc' },
+      }),
+    ]);
+    return { traderDocuments, businessDocuments };
   }
 }
